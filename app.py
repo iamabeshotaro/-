@@ -9,12 +9,10 @@ import time
 # ==========================================
 # 1. ページ設定とスマホ向けCSS
 # ==========================================
-# サービス名を「時間割概論」に変更
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
-    /* 上部の余白を広げて（1rem -> 4rem）、Streamlitのヘッダーに被らないように修正 */
     .block-container {
         padding-top: 4rem !important;
         padding-bottom: 1rem !important;
@@ -30,7 +28,8 @@ st.markdown("""
     div[data-testid="stVerticalBlockBorderWrapper"] > div {
         padding: 2px !important;
         gap: 2px !important;
-        background-color: #fafafa;
+        /* ダークモード/ライトモードで自動切り替え */
+        background-color: var(--secondary-background-color);
     }
     .tt-header {
         text-align: center;
@@ -57,9 +56,17 @@ st.markdown("""
         justify-content: center;
     }
     .empty-cell {
-        background-color: #f0f2f6;
+        /* ダークモード/ライトモードで自動切り替え */
+        background-color: var(--secondary-background-color);
         border-radius: 4px;
         min-height: 40px;
+    }
+    
+    /* ダークモードがオンの時だけ適用される設定 */
+    @media (prefers-color-scheme: dark) {
+        .confirmed-cell {
+            background-color: #4a90e2; /* 黒背景でも見やすい明るめの青 */
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -112,6 +119,7 @@ def load_data():
             priorities = {'M': 1, 'P': 2, 'O': 3, 'S': 4, 'L': 5, 'Z': 6}
             return priorities.get(attr, 99)
         return 99
+        
     df['優先度'] = df['授業コード'].apply(get_priority)
     return df
 
@@ -138,7 +146,6 @@ if 'current_page' not in st.session_state:
 # 5. アカウント画面
 # ==========================================
 if not st.session_state.logged_in:
-    # サービス名変更
     st.title("📚 時間割概論")
     st.write("アカウントにログインまたは新規登録してください。")
     
@@ -198,41 +205,53 @@ def get_slot_pairs(course):
     return list(zip(d_list, p_list))
 
 def toggle_register(semester, course):
-    if isinstance(course, pd.Series): course = course.to_dict()
+    if isinstance(course, pd.Series): 
+        course = course.to_dict()
+        
     cid = course['授業コード']
     if cid not in [b['授業コード'] for b in st.session_state.bookmarks]:
         st.session_state.bookmarks.append(course)
+        
     reg = st.session_state.registered[semester]
     if cid in reg:
         del reg[cid]
         return
+        
     target_slots = get_slot_pairs(course)
     conflicts = []
     for r_cid, r_course in reg.items():
-        if any(s in get_slot_pairs(r_course) for s in target_slots): conflicts.append(r_cid)
+        if any(s in get_slot_pairs(r_course) for s in target_slots): 
+            conflicts.append(r_cid)
+            
     for c in conflicts:
         del reg[c]
         st.toast("⚠️ 重複授業を仮登録に戻しました")
+        
     reg[cid] = course
 
 def get_total_credits(semester_data):
     total = 0
     for c in semester_data.values():
         match = re.search(r'(\d+\.?\d*)', str(c.get('単位数', '0')))
-        if match: total += float(match.group(1))
+        if match: 
+            total += float(match.group(1))
     return total
 
 def display_links(course):
     l1, l2 = st.columns(2)
     with l1:
-        if course.get('詳細URL') and course['詳細URL'] != "不明": st.link_button("📄 シラバス", course['詳細URL'], use_container_width=True)
+        if course.get('詳細URL') and course['詳細URL'] != "不明": 
+            st.link_button("📄 シラバス", course['詳細URL'], use_container_width=True)
     with l2:
-        if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
+        if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
+            st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
 
 def draw_confirmed_timetable(registered_data, semester):
     days = ["月", "火", "水", "木", "金"]
     cols = st.columns([0.6, 1, 1, 1, 1, 1])
-    for i, d in enumerate([""] + days): cols[i].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
+    for i, d in enumerate([""] + days): 
+        cols[i].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
+        
     for p in range(1, 7):
         cols = st.columns([0.6, 1, 1, 1, 1, 1])
         cols[0].markdown(f"<div style='text-align:center; margin-top:15px; font-weight:bold;'>{p}</div>", unsafe_allow_html=True)
@@ -274,12 +293,15 @@ if st.session_state.current_page == "tt":
     col_mode1, col_mode2 = st.columns(2)
     view_mode = st.radio("モード切替", ["🛠️ 編集", "👀 確定表示"], horizontal=True, label_visibility="collapsed")
     
-    if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
+    if 'current_semester' not in st.session_state: 
+        st.session_state.current_semester = "春学期"
+        
     col_h1, col_h2 = st.columns([3, 2])
     with col_h1:
         semester = st.selectbox("学期", ["春学期", "秋学期"], index=0 if st.session_state.current_semester=="春学期" else 1, label_visibility="collapsed")
         st.session_state.current_semester = semester
-    with col_h2: st.write(f"✅ **{get_total_credits(st.session_state.registered[semester]):.1f} 単位**")
+    with col_h2: 
+        st.write(f"✅ **{get_total_credits(st.session_state.registered[semester]):.1f} 単位**")
 
     if view_mode == "👀 確定表示":
         draw_confirmed_timetable(st.session_state.registered, semester)
@@ -289,14 +311,23 @@ if st.session_state.current_page == "tt":
             p = st.session_state.active_slot['period']
             col_title, col_close = st.columns([4, 1])
             col_title.subheader(f"⚙️ {d}曜{p}限")
+            
             if col_close.button("✖ 戻る", type="primary"):
                 st.session_state.active_slot = None
                 st.rerun()
 
             st.write("🔍 **この時間の授業一覧から追加**")
-            mask = [semester.replace("学期","") in row['学期'] and (d, str(p)) in get_slot_pairs(row) for _, row in df.iterrows()]
+            mask = []
+            for _, row in df.iterrows():
+                if semester.replace("学期","") in row['学期'] and (d, str(p)) in get_slot_pairs(row):
+                    mask.append(True)
+                else:
+                    mask.append(False)
+                    
             slot_courses = df[mask].sort_values('優先度')
-            if len(slot_courses) == 0: st.info("この時間に開講されているシラバス掲載の授業はありません。")
+            
+            if len(slot_courses) == 0: 
+                st.info("この時間に開講されているシラバス掲載の授業はありません。")
                 
             for _, row in slot_courses.head(30).iterrows():
                 with st.container(border=True):
@@ -304,15 +335,21 @@ if st.session_state.current_page == "tt":
                     st.caption(f"担当: {row['担当教員']} | 単位: {row['単位数']}")
                     b1, b2 = st.columns(2)
                     is_reg = row['授業コード'] in st.session_state.registered[semester]
+                    
                     if b1.button("解除" if is_reg else "✅ 本登録", key=f"reg_{row['授業コード']}"):
                         toggle_register(semester, row.to_dict())
                         st.session_state.active_slot = None 
                         save_and_rerun()
+                        
                     is_bk = row['授業コード'] in [bk['授業コード'] for bk in st.session_state.bookmarks]
+                    
                     if b2.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_{row['授業コード']}"):
-                        if not is_bk: st.session_state.bookmarks.append(row.to_dict())
-                        else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
+                        if not is_bk: 
+                            st.session_state.bookmarks.append(row.to_dict())
+                        else: 
+                            st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
                         save_and_rerun()
+                        
                     display_links(row.to_dict())
 
             st.divider()
@@ -347,7 +384,9 @@ if st.session_state.current_page == "tt":
         else:
             days = ["月", "火", "水", "木", "金"]
             cols = st.columns([0.6, 1, 1, 1, 1, 1])
-            for i, d in enumerate([""] + days): cols[i].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
+            for i, d in enumerate([""] + days): 
+                cols[i].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
+                
             for p in range(1, 7):
                 cols = st.columns([0.6, 1, 1, 1, 1, 1])
                 cols[0].markdown(f"<div style='text-align:center; margin-top:15px; font-weight:bold;'>{p}</div>", unsafe_allow_html=True)
@@ -355,11 +394,13 @@ if st.session_state.current_page == "tt":
                     with cols[i+1]:
                         with st.container(border=True):
                             bks_in_cell = [b for b in st.session_state.bookmarks if semester.replace("学期","") in b['学期'] and (d, str(p)) in get_slot_pairs(b)]
+                            
                             if bks_in_cell:
                                 for b in bks_in_cell:
                                     cid = b['授業コード']
                                     is_reg = cid in st.session_state.registered[semester]
                                     btn_label = f"✅{cid}" if is_reg else f"⭐{cid}"
+                                    
                                     if cid.startswith("MY_"):
                                         short_name = b['授業名'][:3]
                                         btn_label = f"✅{short_name}" if is_reg else f"⭐{short_name}"
@@ -367,6 +408,7 @@ if st.session_state.current_page == "tt":
                                     if st.button(btn_label, key=f"tt_{d}_{p}_{cid}", use_container_width=True, type="primary" if is_reg else "secondary"):
                                         toggle_register(semester, b)
                                         save_and_rerun()
+                                        
                                 if st.button("＋", key=f"add_{d}_{p}", use_container_width=True):
                                     st.session_state.active_slot = {"day": d, "period": str(p)}
                                     st.rerun()
@@ -387,30 +429,41 @@ elif st.session_state.current_page == "search":
     s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"])
 
     res = df.copy()
-    if s_sem != "すべて": res = res[res['学期'].str.contains(s_sem)]
-    if s_day != "すべて": res = res[res['曜日'].str.contains(s_day)]
-    if s_per != "すべて": res = res[res['時限'].astype(str).str.contains(s_per)]
+    if s_sem != "すべて": 
+        res = res[res['学期'].str.contains(s_sem)]
+    if s_day != "すべて": 
+        res = res[res['曜日'].str.contains(s_day)]
+    if s_per != "すべて": 
+        res = res[res['時限'].astype(str).str.contains(s_per)]
     if query:
         res = res[res['授業名'].str.contains(query, case=False) | res['担当教員'].str.contains(query, case=False) | res['授業コード'].str.contains(query, case=False)]
 
     res = res.sort_values('優先度')
     st.write(f"結果: **{len(res)}件** (50件まで)")
+    
     for _, row in res.head(50).iterrows():
         with st.container(border=True):
             t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(row)])
             st.write(f"**{row['授業コード']} | {row['授業名']}**")
             st.caption(f"{row['学期']} | {t_str} | {row['担当教員']} | {row['単位数']}")
+            
             c1, c2 = st.columns(2)
             active_sem = "春学期" if "春" in row['学期'] else "秋学期"
             is_reg = row['授業コード'] in st.session_state.registered[active_sem]
+            
             if c1.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}"):
                 toggle_register(active_sem, row.to_dict())
                 save_and_rerun()
+                
             is_bk = row['授業コード'] in [b['授業コード'] for b in st.session_state.bookmarks]
+            
             if c2.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}"):
-                if not is_bk: st.session_state.bookmarks.append(row.to_dict())
-                else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
+                if not is_bk: 
+                    st.session_state.bookmarks.append(row.to_dict())
+                else: 
+                    st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
                 save_and_rerun()
+                
             display_links(row.to_dict())
 
 # ------------------------------------------
@@ -418,23 +471,30 @@ elif st.session_state.current_page == "search":
 # ------------------------------------------
 elif st.session_state.current_page == "bk":
     st.subheader("⭐ 保存した授業 (候補)")
-    if not st.session_state.bookmarks: st.info("検索画面から⭐を押して保存してください。")
+    if not st.session_state.bookmarks: 
+        st.info("検索画面から⭐を押して保存してください。")
+        
     for b in st.session_state.bookmarks:
         with st.container(border=True):
             t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(b)])
             display_code = "手動入力" if b['授業コード'].startswith("MY_") else b['授業コード']
             st.write(f"**{display_code} | {b['授業名']}**")
             st.caption(f"{b['学期']} | {t_str} | {b['担当教員']}")
+            
             c1, c2 = st.columns(2)
             active_sem = "春学期" if "春" in b['学期'] else "秋学期"
             is_reg = b['授業コード'] in st.session_state.registered[active_sem]
+            
             if c1.button("解除" if is_reg else "✅ 本登録", key=f"bk_reg_{b['授業コード']}"):
                 toggle_register(active_sem, b)
                 save_and_rerun()
+                
             if c2.button("🗑️ 削除", key=f"bk_del_{b['授業コード']}"):
                 st.session_state.bookmarks = [x for x in st.session_state.bookmarks if x['授業コード'] != b['授業コード']]
-                if is_reg: del st.session_state.registered[active_sem][b['授業コード']]
+                if is_reg: 
+                    del st.session_state.registered[active_sem][b['授業コード']]
                 save_and_rerun()
+                
             if not b['授業コード'].startswith("MY_"):
                 display_links(b)
 
@@ -447,7 +507,6 @@ elif st.session_state.current_page == "public":
     
     users = load_users()
     my_id = st.session_state.current_user
-    
     public_users = [u for u in users.keys() if u != my_id]
     
     if not public_users:
@@ -466,6 +525,7 @@ elif st.session_state.current_page == "public":
             with c_head2:
                 has_liked = my_id in likes_list
                 like_btn_text = f"❤️ {len(likes_list)}" if has_liked else f"🤍 いいね ({len(likes_list)})"
+                
                 if st.button(like_btn_text, use_container_width=True):
                     if has_liked:
                         target_data['likes'].remove(my_id)
