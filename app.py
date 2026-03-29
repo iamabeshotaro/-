@@ -67,12 +67,11 @@ st.markdown("""
     }
 
     /* =========================================
-       ★ スマホの縦画面を禁止し、横画面を促すUI
+       ★ スマホの縦画面を禁止し、横画面を促すUI (改良版)
        ========================================= */
     .portrait-blocker {
         display: none;
     }
-    /* 画面幅が狭く（スマホ）、かつ縦向き（portrait）の時だけ発動 */
     @media screen and (max-width: 768px) and (orientation: portrait) {
         .portrait-blocker {
             display: flex !important;
@@ -81,7 +80,7 @@ st.markdown("""
             left: 0;
             width: 100vw;
             height: 100vh;
-            background-color: var(--secondary-background-color);
+            background-color: rgba(30, 30, 30, 0.98); /* ほぼ真っ黒な背景 */
             z-index: 99999999;
             flex-direction: column;
             justify-content: center;
@@ -89,21 +88,13 @@ st.markdown("""
             text-align: center;
             padding: 20px;
         }
-        .portrait-blocker::after {
-            content: "📱\\A\\Aスマホを横向きにしてください\\A\\A横画面にすると\\A時間割がきれいに表示されます 🔄";
-            white-space: pre-wrap;
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--text-color);
-            line-height: 1.6;
-        }
-        /* 裏側のアプリを見えなくする */
+        /* アプリ本体を見えなくする */
         div[data-testid="stAppViewContainer"] > div:first-child {
             display: none !important;
         }
     }
 
-    /* 念のため横画面時のレイアウト崩れも防止 */
+    /* 横画面時のレイアウト崩れ防止 */
     @media screen and (max-width: 900px) and (orientation: landscape) {
         div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
@@ -120,7 +111,12 @@ st.markdown("""
         }
     }
 </style>
-<div class="portrait-blocker"></div>
+
+<div class="portrait-blocker">
+    <div style="font-size: 70px; margin-bottom: 20px;">📱 🔄</div>
+    <h2 style="color: #ffffff; margin-bottom: 10px;">スマホを横向きに<br>してください</h2>
+    <p style="color: #cccccc; font-size: 16px;">横画面にすると<br>時間割がきれいに表示されます</p>
+</div>
 """, unsafe_allow_html=True)
 
 # ==========================================
