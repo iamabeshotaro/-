@@ -67,7 +67,7 @@ st.markdown("""
     }
 
     /* =========================================
-       ★ スマホの縦画面を禁止し、横画面を促すUI (改良版)
+       ★ スマホの縦画面を禁止し、横画面を促すUI (サイズ調整版)
        ========================================= */
     .portrait-blocker {
         display: none;
@@ -80,13 +80,31 @@ st.markdown("""
             left: 0;
             width: 100vw;
             height: 100vh;
-            background-color: rgba(30, 30, 30, 0.98); /* ほぼ真っ黒な背景 */
+            background-color: rgba(30, 30, 30, 0.98);
             z-index: 99999999;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            padding: 20px;
+            /* はみ出さないように余白を確保 */
+            padding: 10%;
+            box-sizing: border-box;
+        }
+        /* 中身のテキストサイズを画面幅に合わせる */
+        .portrait-blocker div {
+            font-size: min(15vw, 60px); 
+            margin-bottom: 15px;
+        }
+        .portrait-blocker h2 {
+            color: #ffffff; 
+            margin-bottom: 10px;
+            font-size: min(6vw, 24px);
+            line-height: 1.4;
+        }
+        .portrait-blocker p {
+            color: #cccccc; 
+            font-size: min(4vw, 16px);
+            line-height: 1.5;
         }
         /* アプリ本体を見えなくする */
         div[data-testid="stAppViewContainer"] > div:first-child {
@@ -113,9 +131,9 @@ st.markdown("""
 </style>
 
 <div class="portrait-blocker">
-    <div style="font-size: 70px; margin-bottom: 20px;">📱 🔄</div>
-    <h2 style="color: #ffffff; margin-bottom: 10px;">スマホを横向きに<br>してください</h2>
-    <p style="color: #cccccc; font-size: 16px;">横画面にすると<br>時間割がきれいに表示されます</p>
+    <div>📱 🔄</div>
+    <h2>スマホを横向きに<br>してください</h2>
+    <p>横画面にすると<br>時間割がきれいに表示されます</p>
 </div>
 """, unsafe_allow_html=True)
 
