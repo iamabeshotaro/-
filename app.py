@@ -7,88 +7,130 @@ import os
 import time
 
 # ==========================================
-# 1. ページ設定とスマホ向けCSS
+# 1. ページ設定とスマホ向けCSS (モダンUI化)
 # ==========================================
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
+    /* アプリ全体の背景を少し明るくして要素を際立たせる */
+    .stApp {
+        background-color: #f8f9fa;
+    }
+    @media (prefers-color-scheme: dark) {
+        .stApp {
+            background-color: #0e1117;
+        }
+    }
+
     .block-container {
-        padding-top: 4rem !important;
+        padding-top: 3rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
+
+    /* ボタンのモダン化（角丸・シャドウ・折り返し対応） */
     div.stButton > button {
-        border-radius: 4px !important;
-        font-weight: bold !important;
-        padding: 4px 0px !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
+        border: 1px solid #e0e0e0 !important;
+        font-weight: 600 !important;
+        padding: 6px 4px !important;
         font-size: 11px !important;
-        min-height: 32px !important;
-        line-height: 1.2 !important;
+        min-height: 50px !important;
+        line-height: 1.3 !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        transition: all 0.2s ease !important;
     }
+    div.stButton > button:active {
+        transform: scale(0.96);
+    }
+    @media (prefers-color-scheme: dark) {
+        div.stButton > button {
+            border: 1px solid #333 !important;
+            box-shadow: 0 2px 5px rgba(255,255,255,0.02) !important;
+        }
+    }
+
+    /* 時間割グリッドのコンテナ */
     div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        padding: 2px !important;
-        gap: 2px !important;
-        background-color: var(--secondary-background-color);
+        padding: 3px !important;
+        gap: 3px !important;
+        background-color: transparent !important;
+        border: none !important;
     }
+    
     .tt-header {
         text-align: center;
-        font-size: 12px;
-        font-weight: bold;
-        margin-bottom: 2px;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 4px;
+        color: #555;
     }
-    .auth-btn button {
-        font-size: 14px !important;
-        padding: 8px !important;
+    @media (prefers-color-scheme: dark) {
+        .tt-header { color: #ccc; }
     }
+
+    /* 確定コマの洗練されたグラデーション */
     .confirmed-cell {
-        background-color: #004080;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         color: white;
-        border-radius: 4px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 242, 254, 0.2);
         padding: 6px;
-        font-size: 10px;
+        font-size: 11px;
         text-align: center;
         font-weight: bold;
         height: 100%;
-        min-height: 40px;
+        min-height: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
+        word-break: break-word;
+        line-height: 1.3;
     }
     .empty-cell {
-        background-color: var(--secondary-background-color);
-        border-radius: 4px;
-        min-height: 40px;
+        background-color: rgba(0,0,0,0.03);
+        border-radius: 12px;
+        border: 2px dashed rgba(0,0,0,0.1);
+        min-height: 50px;
     }
     @media (prefers-color-scheme: dark) {
         .confirmed-cell {
-            background-color: #4a90e2;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 10px rgba(118, 75, 162, 0.3);
+        }
+        .empty-cell {
+            background-color: rgba(255,255,255,0.03);
+            border: 2px dashed rgba(255,255,255,0.1);
         }
     }
 
     /* =========================================
-       ★ スマホの狭い画面でも時間割を潰さず、横スクロールさせる
+       ★ 縦画面のまま横スクロールを可能にする設定
        ========================================= */
     @media screen and (max-width: 768px) {
-        /* アプリ全体に最低限の広い幅（PC並み）を強制する */
         .block-container {
-            min-width: 750px !important; 
+            overflow-x: auto !important; /* 全体を横スクロール可能に */
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
         }
-        /* 要素が縦に折り返される（縦並びになる）のを完全に防ぐ */
+        /* 時間割の横幅を最低600pxに固定し、潰れないようにする */
         div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
+            min-width: 600px !important;
             gap: 4px !important;
         }
-        /* 各カラムの幅を維持する */
         div[data-testid="column"] {
             width: auto !important;
             flex: 1 1 0% !important;
             min-width: 0 !important;
         }
-        /* 時間割の1列目（時限の数字）だけ細くする */
+        /* 1列目（時限の数字）を細くする */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div:first-child {
-            flex: 0.6 1 0% !important;
+            flex: 0.5 1 0% !important;
         }
     }
 </style>
@@ -176,7 +218,6 @@ if not st.session_state.logged_in:
     user_input = st.text_input("ユーザーネーム (公開されます)")
     pass_input = st.text_input("パスワード", type="password")
     
-    st.markdown('<div class="auth-btn">', unsafe_allow_html=True)
     if auth_mode == "新規登録":
         if st.button("登録してはじめる", type="primary", use_container_width=True):
             if not user_input or not pass_input:
@@ -205,15 +246,23 @@ if not st.session_state.logged_in:
                 st.rerun()
             else:
                 st.error("⚠️ 間違っています")
-    st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
 # ==========================================
-# 6. サイドバー
+# 6. サイドバー (逆通信簿の連携ボタンを追加)
 # ==========================================
 with st.sidebar:
     st.subheader("👤 アカウント")
     st.write(f"ユーザー: **{st.session_state.current_user}**")
+    st.divider()
+    
+    # 逆通信簿への誘導エリア
+    st.subheader("📖 ガチの授業評価を見る")
+    st.write("みんキャンより質が高い、独自集計の「逆通信簿」データベースはこちら。")
+    st.link_button("📊 逆通信簿を見る (note版)", "https://note.com/", type="primary", use_container_width=True)
+    st.caption("※100円で閲覧パスワードを公開しています")
+    
+    st.divider()
     if st.button("🚪 ログアウト", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.current_user = None
@@ -277,12 +326,13 @@ def draw_confirmed_timetable(registered_data, semester):
         
     for p in range(1, 7):
         cols = st.columns([0.6, 1, 1, 1, 1, 1])
-        cols[0].markdown(f"<div style='text-align:center; margin-top:15px; font-weight:bold;'>{p}</div>", unsafe_allow_html=True)
+        cols[0].markdown(f"<div style='text-align:center; margin-top:20px; font-weight:bold; color:#777;'>{p}</div>", unsafe_allow_html=True)
         for i, d in enumerate(days):
             with cols[i+1]:
                 course = next((c for c in registered_data.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                 if course:
-                    short_name = course['授業名'][:6] + ".." if len(course['授業名']) > 6 else course['授業名']
+                    # 授業名の先頭10文字を表示
+                    short_name = course['授業名'][:10]
                     st.markdown(f"<div class='confirmed-cell'>{short_name}</div>", unsafe_allow_html=True)
                 else:
                     st.markdown("<div class='empty-cell'></div>", unsafe_allow_html=True)
@@ -354,8 +404,8 @@ if st.session_state.current_page == "tt":
                 
             for _, row in slot_courses.head(30).iterrows():
                 with st.container(border=True):
-                    st.write(f"**{row['授業コード']} | {row['授業名']}**")
-                    st.caption(f"担当: {row['担当教員']} | 単位: {row['単位数']}")
+                    st.write(f"**{row['授業名']}**")
+                    st.caption(f"コード: {row['授業コード']} | 担当: {row['担当教員']} | 単位: {row['単位数']}")
                     b1, b2 = st.columns(2)
                     is_reg = row['授業コード'] in st.session_state.registered[semester]
                     
@@ -412,7 +462,7 @@ if st.session_state.current_page == "tt":
                 
             for p in range(1, 7):
                 cols = st.columns([0.6, 1, 1, 1, 1, 1])
-                cols[0].markdown(f"<div style='text-align:center; margin-top:15px; font-weight:bold;'>{p}</div>", unsafe_allow_html=True)
+                cols[0].markdown(f"<div style='text-align:center; margin-top:20px; font-weight:bold; color:#777;'>{p}</div>", unsafe_allow_html=True)
                 for i, d in enumerate(days):
                     with cols[i+1]:
                         with st.container(border=True):
@@ -422,11 +472,10 @@ if st.session_state.current_page == "tt":
                                 for b in bks_in_cell:
                                     cid = b['授業コード']
                                     is_reg = cid in st.session_state.registered[semester]
-                                    btn_label = f"✅{cid}" if is_reg else f"⭐{cid}"
                                     
-                                    if cid.startswith("MY_"):
-                                        short_name = b['授業名'][:3]
-                                        btn_label = f"✅{short_name}" if is_reg else f"⭐{short_name}"
+                                    # 授業名の先頭10文字を表示
+                                    display_name = b['授業名'][:10]
+                                    btn_label = f"✅{display_name}" if is_reg else f"⭐{display_name}"
                                         
                                     if st.button(btn_label, key=f"tt_{d}_{p}_{cid}", use_container_width=True, type="primary" if is_reg else "secondary"):
                                         toggle_register(semester, b)
@@ -467,8 +516,8 @@ elif st.session_state.current_page == "search":
     for _, row in res.head(50).iterrows():
         with st.container(border=True):
             t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(row)])
-            st.write(f"**{row['授業コード']} | {row['授業名']}**")
-            st.caption(f"{row['学期']} | {t_str} | {row['担当教員']} | {row['単位数']}")
+            st.write(f"**{row['授業名']}**")
+            st.caption(f"コード: {row['授業コード']} | {row['学期']} | {t_str} | {row['担当教員']} | {row['単位数']}")
             
             c1, c2 = st.columns(2)
             active_sem = "春学期" if "春" in row['学期'] else "秋学期"
@@ -500,9 +549,9 @@ elif st.session_state.current_page == "bk":
     for b in st.session_state.bookmarks:
         with st.container(border=True):
             t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(b)])
+            st.write(f"**{b['授業名']}**")
             display_code = "手動入力" if b['授業コード'].startswith("MY_") else b['授業コード']
-            st.write(f"**{display_code} | {b['授業名']}**")
-            st.caption(f"{b['学期']} | {t_str} | {b['担当教員']}")
+            st.caption(f"コード: {display_code} | {b['学期']} | {t_str} | {b['担当教員']}")
             
             c1, c2 = st.columns(2)
             active_sem = "春学期" if "春" in b['学期'] else "秋学期"
