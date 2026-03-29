@@ -7,11 +7,26 @@ import os
 import time
 import datetime
 import extra_streamlit_components as stx
+import streamlit.components.v1 as components # ★これを追加
 
 # ==========================================
 # 1. ページ設定とスマホ向けCSS (ネイティブアプリ風)
 # ==========================================
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
+
+# ★追加：スマホのピンチイン（縮小・拡大）ズームを許可する魔法のコード
+components.html(
+    """
+    <script>
+    const meta = window.parent.document.querySelector('meta[name="viewport"]');
+    if (meta) {
+        // スマホ画面幅にフィットさせつつ、指でのズームを解禁する
+        meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+    }
+    </script>
+    """,
+    height=0
+)
 
 st.markdown("""
 <style>
@@ -98,7 +113,6 @@ st.markdown("""
         }
     }
 
-    /* ヘッダー文字 */
     .tt-header {
         text-align: center;
         font-size: 12px;
@@ -111,10 +125,12 @@ st.markdown("""
     }
 
     /* =========================================
-       ★ 魔法のCSS: スマホで時間割(6列の行)だけをピタッと収める
+       ★ スマホ向け: ズームと1画面フィット設定
        ========================================= */
     @media screen and (max-width: 768px) {
         .block-container {
+            /* ★ スマホの時は上の無駄な空白を極限まで削って、1画面に収まりやすくする */
+            padding-top: 1rem !important; 
             padding-left: 0.2rem !important;
             padding-right: 0.2rem !important;
         }
@@ -127,7 +143,6 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* 6列の中の各カラム幅を自動で等分に縮小 */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] {
             width: auto !important;
             flex: 1 1 0% !important;
@@ -135,12 +150,10 @@ st.markdown("""
             padding: 0 !important;
         }
 
-        /* 1列目（時限の数字）は少しだけ細くする */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child {
             flex: 0.35 1 0% !important;
         }
 
-        /* スマホ画面内のボタンやセルを極限までコンパクトに */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
             font-size: 8px !important;
             padding: 0 !important;
