@@ -136,7 +136,7 @@ if 'current_page' not in st.session_state:
 # 5. アカウント画面
 # ==========================================
 if not st.session_state.logged_in:
-    st.title("📚 シラバス時間割")
+    st.title("時間割概論")
     st.write("アカウントにログインまたは新規登録してください。")
     
     auth_mode = st.radio("メニュー", ["ログイン", "新規登録"], horizontal=True)
