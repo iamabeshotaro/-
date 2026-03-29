@@ -4,11 +4,12 @@ import re
 import json
 import hashlib
 import os
+import time  # 手動入力授業のID生成に使用
 
 # ==========================================
 # 1. ページ設定とスマホ向けCSS
 # ==========================================
-st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="中大シラバス時間割", layout="centered", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
@@ -39,7 +40,6 @@ st.markdown("""
         font-size: 14px !important;
         padding: 8px !important;
     }
-    /* 確定時間割用のきれいなコマ */
     .confirmed-cell {
         background-color: #004080;
         color: white;
@@ -72,10 +72,9 @@ def load_users():
         return {}
     with open(USER_FILE, 'r', encoding='utf-8') as f:
         users = json.load(f)
-        # 互換性チェック（いいね機能の枠を追加）
         for u_data in users.values():
             if "likes" not in u_data:
-                u_data["likes"] = [] # 自分にいいねしてくれた人のリスト
+                u_data["likes"] = []
         return users
 
 def save_users(users):
@@ -158,7 +157,7 @@ if not st.session_state.logged_in:
                         "password": hash_pass(pass_input),
                         "registered": {"春学期": {}, "秋学期": {}},
                         "bookmarks": [],
-                        "likes": [] # いいねリスト
+                        "likes": []
                     }
                     save_users(users)
                     st.success("✅ 登録完了！「ログイン」から入ってください。")
@@ -266,7 +265,7 @@ st.divider()
 # ==========================================
 
 # ------------------------------------------
-# 画面1: マイ時間割（編集＆確定表示）
+# 画面1: マイ時間割
 # ------------------------------------------
 if st.session_state.current_page == "tt":
     col_mode1, col_mode2 = st.columns(2)
@@ -277,11 +276,12 @@ if st.session_state.current_page == "tt":
     with col_h1:
         semester = st.selectbox("学期", ["春学期", "秋学期"], index=0 if st.session_state.current_semester=="春学期" else 1, label_visibility="collapsed")
         st.session_state.current_semester = semester
-    with col_h2: st.write(f"✅ **{int(get_total_credits(st.session_state.registered[semester]))} 単位**")
+    with col_h2: st.write(f"✅ **{get_total_credits(st.session_state.registered[semester]):.1f} 単位**")
 
     if view_mode == "👀 確定表示":
         draw_confirmed_timetable(st.session_state.registered, semester)
     else:
+        # 操作エリア（展開時）
         if st.session_state.active_slot:
             d = st.session_state.active_slot['day']
             p = st.session_state.active_slot['period']
@@ -294,7 +294,7 @@ if st.session_state.current_page == "tt":
             st.write("🔍 **この時間の授業一覧から追加**")
             mask = [semester.replace("学期","") in row['学期'] and (d, str(p)) in get_slot_pairs(row) for _, row in df.iterrows()]
             slot_courses = df[mask].sort_values('優先度')
-            if len(slot_courses) == 0: st.info("この時間に開講されている授業はありません。")
+            if len(slot_courses) == 0: st.info("この時間に開講されているシラバス掲載の授業はありません。")
                 
             for _, row in slot_courses.head(30).iterrows():
                 with st.container(border=True):
@@ -312,6 +312,39 @@ if st.session_state.current_page == "tt":
                         else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
                         save_and_rerun()
                     display_links(row.to_dict())
+
+            # ★ 新機能：手動入力エリア
+            st.divider()
+            st.write("✏️ **リストにない授業を手動で追加**")
+            with st.expander("＋ オリジナルの授業を作成する"):
+                with st.form(f"custom_course_{d}_{p}"):
+                    c_name = st.text_input("授業名（必須）", placeholder="例: 他学部履修科目")
+                    c_teacher = st.text_input("担当教員", placeholder="例: 山田 太郎")
+                    c_credits = st.number_input("単位数", min_value=0.0, max_value=10.0, value=2.0, step=1.0)
+                    
+                    if st.form_submit_button("✅ このコマに登録"):
+                        if not c_name.strip():
+                            st.error("授業名を入力してください")
+                        else:
+                            # 一意のIDを生成 (MY_ + タイムスタンプ)
+                            custom_id = f"MY_{int(time.time())}"
+                            custom_course = {
+                                "授業コード": custom_id,
+                                "授業名": c_name,
+                                "担当教員": c_teacher if c_teacher else "不明",
+                                "単位数": f"{c_credits}単位",
+                                "曜日": d,
+                                "時限": str(p),
+                                "学期": semester,
+                                "詳細URL": "不明",
+                                "みんキャン検索LINK": "不明",
+                                "優先度": 99
+                            }
+                            toggle_register(semester, custom_course)
+                            st.session_state.active_slot = None
+                            save_and_rerun()
+
+        # 時間割表本体
         else:
             days = ["月", "火", "水", "木", "金"]
             cols = st.columns([0.6, 1, 1, 1, 1, 1])
@@ -327,7 +360,13 @@ if st.session_state.current_page == "tt":
                                 for b in bks_in_cell:
                                     cid = b['授業コード']
                                     is_reg = cid in st.session_state.registered[semester]
-                                    if st.button(f"✅{cid}" if is_reg else f"⭐{cid}", key=f"tt_{d}_{p}_{cid}", use_container_width=True, type="primary" if is_reg else "secondary"):
+                                    # カスタム授業の場合はコードではなく名前の先頭を表示
+                                    btn_label = f"✅{cid}" if is_reg else f"⭐{cid}"
+                                    if cid.startswith("MY_"):
+                                        short_name = b['授業名'][:3]
+                                        btn_label = f"✅{short_name}" if is_reg else f"⭐{short_name}"
+                                        
+                                    if st.button(btn_label, key=f"tt_{d}_{p}_{cid}", use_container_width=True, type="primary" if is_reg else "secondary"):
                                         toggle_register(semester, b)
                                         save_and_rerun()
                                 if st.button("＋", key=f"add_{d}_{p}", use_container_width=True):
@@ -385,7 +424,9 @@ elif st.session_state.current_page == "bk":
     for b in st.session_state.bookmarks:
         with st.container(border=True):
             t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(b)])
-            st.write(f"**{b['授業コード']} | {b['授業名']}**")
+            # カスタム授業の場合はコードを「手動入力」と表示
+            display_code = "手動入力" if b['授業コード'].startswith("MY_") else b['授業コード']
+            st.write(f"**{display_code} | {b['授業名']}**")
             st.caption(f"{b['学期']} | {t_str} | {b['担当教員']}")
             c1, c2 = st.columns(2)
             active_sem = "春学期" if "春" in b['学期'] else "秋学期"
@@ -397,7 +438,8 @@ elif st.session_state.current_page == "bk":
                 st.session_state.bookmarks = [x for x in st.session_state.bookmarks if x['授業コード'] != b['授業コード']]
                 if is_reg: del st.session_state.registered[active_sem][b['授業コード']]
                 save_and_rerun()
-            display_links(b)
+            if not b['授業コード'].startswith("MY_"):
+                display_links(b)
 
 # ------------------------------------------
 # 画面4: みんなの時間割 (公開タイムライン)
@@ -409,27 +451,22 @@ elif st.session_state.current_page == "public":
     users = load_users()
     my_id = st.session_state.current_user
     
-    # ユーザー一覧（自分以外）
     public_users = [u for u in users.keys() if u != my_id]
     
     if not public_users:
         st.info("まだ他のユーザーがいません。")
     else:
-        # いいね数で並び替え（人気順）
         public_users.sort(key=lambda u: len(users[u].get('likes', [])), reverse=True)
-        
         selected_user = st.selectbox("時間割を見るユーザーを選択（人気順）", ["選択してください..."] + public_users)
         
         if selected_user != "選択してください...":
             target_data = users[selected_user]
             likes_list = target_data.get('likes', [])
             
-            # いいねと学期のヘッダー
             c_head1, c_head2 = st.columns([3, 2])
             with c_head1:
                 p_sem = st.selectbox("表示する学期", ["春学期", "秋学期"])
             with c_head2:
-                # いいねボタンの処理
                 has_liked = my_id in likes_list
                 like_btn_text = f"❤️ {len(likes_list)}" if has_liked else f"🤍 いいね ({len(likes_list)})"
                 if st.button(like_btn_text, use_container_width=True):
@@ -440,7 +477,5 @@ elif st.session_state.current_page == "public":
                     save_users(users)
                     st.rerun()
 
-            st.write(f"👤 **{selected_user}** さんの {p_sem}（計 {int(get_total_credits(target_data['registered'].get(p_sem, {})))} 単位）")
-            
-            # 確定時間割の描画
+            st.write(f"👤 **{selected_user}** さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             draw_confirmed_timetable(target_data['registered'], p_sem)
