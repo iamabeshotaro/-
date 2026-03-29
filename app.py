@@ -67,74 +67,27 @@ st.markdown("""
     }
 
     /* =========================================
-       ★ スマホの縦画面を禁止し、横画面を促すUI (サイズ調整版)
+       ★ スマホの縦並び崩れを防止する魔法のコード
        ========================================= */
-    .portrait-blocker {
-        display: none;
-    }
-    @media screen and (max-width: 768px) and (orientation: portrait) {
-        .portrait-blocker {
-            display: flex !important;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: rgba(30, 30, 30, 0.98);
-            z-index: 99999999;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            /* はみ出さないように余白を確保 */
-            padding: 10%;
-            box-sizing: border-box;
-        }
-        /* 中身のテキストサイズを画面幅に合わせる */
-        .portrait-blocker div {
-            font-size: min(15vw, 60px); 
-            margin-bottom: 15px;
-        }
-        .portrait-blocker h2 {
-            color: #ffffff; 
-            margin-bottom: 10px;
-            font-size: min(6vw, 24px);
-            line-height: 1.4;
-        }
-        .portrait-blocker p {
-            color: #cccccc; 
-            font-size: min(4vw, 16px);
-            line-height: 1.5;
-        }
-        /* アプリ本体を見えなくする */
-        div[data-testid="stAppViewContainer"] > div:first-child {
-            display: none !important;
-        }
-    }
-
-    /* 横画面時のレイアウト崩れ防止 */
-    @media screen and (max-width: 900px) and (orientation: landscape) {
+    @media (max-width: 640px) {
+        /* カラムの折り返しを禁止し、絶対に横並びにする */
         div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 2px !important;
+            gap: 2px !important; /* スマホでは隙間を極力減らす */
         }
+        /* 各カラムの幅を均等に圧縮する */
         div[data-testid="column"] {
             width: auto !important;
             flex: 1 1 0% !important;
             min-width: 0 !important;
         }
+        /* 6列あるブロック（時間割グリッド）の1列目（時限の数字）だけ少し細くする */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div:first-child {
             flex: 0.6 1 0% !important;
         }
     }
 </style>
-
-<div class="portrait-blocker">
-    <div>📱 🔄</div>
-    <h2>スマホを横向きに<br>してください</h2>
-    <p>横画面にすると<br>時間割がきれいに表示されます</p>
-</div>
 """, unsafe_allow_html=True)
 
 # ==========================================
