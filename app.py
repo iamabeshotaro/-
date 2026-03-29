@@ -5,6 +5,8 @@ import json
 import hashlib
 import os
 import time
+import datetime
+import extra_streamlit_components as stx
 
 # ==========================================
 # 1. ページ設定とスマホ向けCSS (モダンUI化)
@@ -13,7 +15,6 @@ st.set_page_config(page_title="時間割概論", layout="centered", initial_side
 
 st.markdown("""
 <style>
-    /* アプリ全体の背景を少し明るくして要素を際立たせる */
     .stApp {
         background-color: #f8f9fa;
     }
@@ -29,14 +30,14 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* ボタンのモダン化（角丸・シャドウ・折り返し対応） */
+    /* ボタンの調整：絵文字が映えるようにフォントサイズを少し大きく */
     div.stButton > button {
         border-radius: 12px !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
         border: 1px solid #e0e0e0 !important;
         font-weight: 600 !important;
         padding: 6px 4px !important;
-        font-size: 11px !important;
+        font-size: 14px !important; 
         min-height: 50px !important;
         line-height: 1.3 !important;
         white-space: normal !important;
@@ -53,7 +54,6 @@ st.markdown("""
         }
     }
 
-    /* 時間割グリッドのコンテナ */
     div[data-testid="stVerticalBlockBorderWrapper"] > div {
         padding: 3px !important;
         gap: 3px !important;
@@ -72,14 +72,14 @@ st.markdown("""
         .tt-header { color: #ccc; }
     }
 
-    /* 確定コマの洗練されたグラデーション */
+    /* 確定コマ（19文字が収まるように調整） */
     .confirmed-cell {
         background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         color: white;
         border-radius: 12px;
         box-shadow: 0 4px 10px rgba(0, 242, 254, 0.2);
-        padding: 6px;
-        font-size: 11px;
+        padding: 6px 4px;
+        font-size: 10px; /* 19文字でも圧迫感がないサイズ */
         text-align: center;
         font-weight: bold;
         height: 100%;
@@ -89,6 +89,7 @@ st.markdown("""
         justify-content: center;
         word-break: break-word;
         line-height: 1.3;
+        overflow: hidden;
     }
     .empty-cell {
         background-color: rgba(0,0,0,0.03);
@@ -107,16 +108,12 @@ st.markdown("""
         }
     }
 
-    /* =========================================
-       ★ 縦画面のまま横スクロールを可能にする設定
-       ========================================= */
     @media screen and (max-width: 768px) {
         .block-container {
-            overflow-x: auto !important; /* 全体を横スクロール可能に */
+            overflow-x: auto !important; 
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
         }
-        /* 時間割の横幅を最低600pxに固定し、潰れないようにする */
         div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
@@ -128,7 +125,6 @@ st.markdown("""
             flex: 1 1 0% !important;
             min-width: 0 !important;
         }
-        /* 1列目（時限の数字）を細くする */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div:first-child {
             flex: 0.5 1 0% !important;
         }
@@ -137,7 +133,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. データベース（JSON）管理
+# 2. データベース（JSON）とクッキー管理
 # ==========================================
 USER_FILE = 'users_data.json'
 
@@ -166,6 +162,12 @@ def save_and_rerun():
         users[u_name]['bookmarks'] = st.session_state.bookmarks
         save_users(users)
     st.rerun()
+
+# クッキーマネージャーの初期化（1ヶ月ログイン保持用）
+@st.cache_resource
+def get_cookie_manager():
+    return stx.CookieManager()
+cookie_manager = get_cookie_manager()
 
 # ==========================================
 # 3. データの準備
@@ -208,9 +210,20 @@ if 'current_page' not in st.session_state:
     st.session_state.current_page = "tt"
 
 # ==========================================
-# 5. アカウント画面
+# 5. アカウント画面（クッキーによる自動ログイン）
 # ==========================================
 if not st.session_state.logged_in:
+    # ブラウザに保存されたクッキーをチェック
+    cached_user = cookie_manager.get(cookie="current_user")
+    if cached_user:
+        users = load_users()
+        if cached_user in users:
+            st.session_state.logged_in = True
+            st.session_state.current_user = cached_user
+            st.session_state.registered = users[cached_user]["registered"]
+            st.session_state.bookmarks = users[cached_user]["bookmarks"]
+            st.rerun()
+
     st.title("📚 時間割概論")
     st.write("アカウントにログインまたは新規登録してください。")
     
@@ -243,20 +256,23 @@ if not st.session_state.logged_in:
                 st.session_state.current_user = user_input
                 st.session_state.registered = users[user_input]["registered"]
                 st.session_state.bookmarks = users[user_input]["bookmarks"]
+                
+                # ログイン状態を1ヶ月間（2592000秒）クッキーに保存
+                cookie_manager.set("current_user", user_input, max_age=2592000)
+                time.sleep(0.5) # クッキーの保存を少し待つ
                 st.rerun()
             else:
                 st.error("⚠️ 間違っています")
     st.stop()
 
 # ==========================================
-# 6. サイドバー (逆通信簿の連携ボタンを追加)
+# 6. サイドバー
 # ==========================================
 with st.sidebar:
     st.subheader("👤 アカウント")
     st.write(f"ユーザー: **{st.session_state.current_user}**")
     st.divider()
     
-    # 逆通信簿への誘導エリア
     st.subheader("📖 ガチの授業評価を見る")
     st.write("みんキャンより質が高い、独自集計の「逆通信簿」データベースはこちら。")
     st.link_button("📊 逆通信簿を見る (note版)", "https://note.com/", type="primary", use_container_width=True)
@@ -264,8 +280,10 @@ with st.sidebar:
     
     st.divider()
     if st.button("🚪 ログアウト", use_container_width=True):
+        cookie_manager.delete("current_user") # クッキーを削除
         st.session_state.logged_in = False
         st.session_state.current_user = None
+        time.sleep(0.5)
         st.rerun()
 
 # ==========================================
@@ -331,26 +349,26 @@ def draw_confirmed_timetable(registered_data, semester):
             with cols[i+1]:
                 course = next((c for c in registered_data.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                 if course:
-                    # 授業名の先頭10文字を表示
-                    short_name = course['授業名'][:10]
+                    # ★ 授業名を最大19文字に変更
+                    short_name = course['授業名'][:19]
                     st.markdown(f"<div class='confirmed-cell'>{short_name}</div>", unsafe_allow_html=True)
                 else:
                     st.markdown("<div class='empty-cell'></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 8. ナビゲーション
+# 8. ナビゲーション（★絵文字のみに変更）
 # ==========================================
 nav1, nav2, nav3, nav4 = st.columns(4)
-if nav1.button("🗓️ マイ", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
+if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True, help="マイ時間割"):
     st.session_state.current_page = "tt"
     st.rerun()
-if nav2.button("🔍 検索", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
+if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True, help="検索"):
     st.session_state.current_page = "search"
     st.rerun()
-if nav3.button("⭐ 候補", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
+if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True, help="候補"):
     st.session_state.current_page = "bk"
     st.rerun()
-if nav4.button("🌍 みんな", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
+if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True, help="みんなの時間割"):
     st.session_state.current_page = "public"
     st.rerun()
 st.divider()
@@ -364,7 +382,8 @@ st.divider()
 # ------------------------------------------
 if st.session_state.current_page == "tt":
     col_mode1, col_mode2 = st.columns(2)
-    view_mode = st.radio("モード切替", ["🛠️ 編集", "👀 確定表示"], horizontal=True, label_visibility="collapsed")
+    # ★ 絵文字のみに変更
+    view_mode = st.radio("モード切替", ["🛠️", "👀"], horizontal=True, label_visibility="collapsed", help="左:編集モード / 右:確定表示")
     
     if 'current_semester' not in st.session_state: 
         st.session_state.current_semester = "春学期"
@@ -376,7 +395,7 @@ if st.session_state.current_page == "tt":
     with col_h2: 
         st.write(f"✅ **{get_total_credits(st.session_state.registered[semester]):.1f} 単位**")
 
-    if view_mode == "👀 確定表示":
+    if view_mode == "👀":
         draw_confirmed_timetable(st.session_state.registered, semester)
     else:
         if st.session_state.active_slot:
@@ -473,8 +492,8 @@ if st.session_state.current_page == "tt":
                                     cid = b['授業コード']
                                     is_reg = cid in st.session_state.registered[semester]
                                     
-                                    # 授業名の先頭10文字を表示
-                                    display_name = b['授業名'][:10]
+                                    # ★ 最大19文字表示
+                                    display_name = b['授業名'][:19]
                                     btn_label = f"✅{display_name}" if is_reg else f"⭐{display_name}"
                                         
                                     if st.button(btn_label, key=f"tt_{d}_{p}_{cid}", use_container_width=True, type="primary" if is_reg else "secondary"):
