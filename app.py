@@ -24,11 +24,11 @@ st.markdown("""
         padding: 4px 0px !important;
         font-size: 11px !important;
         min-height: 32px !important;
+        line-height: 1.2 !important;
     }
     div[data-testid="stVerticalBlockBorderWrapper"] > div {
         padding: 2px !important;
         gap: 2px !important;
-        /* ダークモード/ライトモードで自動切り替え */
         background-color: var(--secondary-background-color);
     }
     .tt-header {
@@ -56,16 +56,35 @@ st.markdown("""
         justify-content: center;
     }
     .empty-cell {
-        /* ダークモード/ライトモードで自動切り替え */
         background-color: var(--secondary-background-color);
         border-radius: 4px;
         min-height: 40px;
     }
-    
-    /* ダークモードがオンの時だけ適用される設定 */
     @media (prefers-color-scheme: dark) {
         .confirmed-cell {
-            background-color: #4a90e2; /* 黒背景でも見やすい明るめの青 */
+            background-color: #4a90e2;
+        }
+    }
+
+    /* =========================================
+       ★ スマホの縦並び崩れを防止する魔法のコード
+       ========================================= */
+    @media (max-width: 640px) {
+        /* カラムの折り返しを禁止し、絶対に横並びにする */
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 2px !important; /* スマホでは隙間を極力減らす */
+        }
+        /* 各カラムの幅を均等に圧縮する */
+        div[data-testid="column"] {
+            width: auto !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+        }
+        /* 6列あるブロック（時間割グリッド）の1列目（時限の数字）だけ少し細くする */
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div:first-child {
+            flex: 0.6 1 0% !important;
         }
     }
 </style>
@@ -268,16 +287,16 @@ def draw_confirmed_timetable(registered_data, semester):
 # 8. ナビゲーション
 # ==========================================
 nav1, nav2, nav3, nav4 = st.columns(4)
-if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
+if nav1.button("🗓️ マイ", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
     st.session_state.current_page = "tt"
     st.rerun()
-if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
+if nav2.button("🔍 検索", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
     st.session_state.current_page = "search"
     st.rerun()
-if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
+if nav3.button("⭐ 候補", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
     st.session_state.current_page = "bk"
     st.rerun()
-if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
+if nav4.button("🌍 みんな", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
     st.session_state.current_page = "public"
     st.rerun()
 st.divider()
