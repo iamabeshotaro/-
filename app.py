@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import re
 import json
@@ -13,6 +14,20 @@ import extra_streamlit_components as stx
 # ==========================================
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
+# ★ スマホでもPC版と同じように全体を表示し、手動で拡大・縮小(ズーム)できるようにする裏技
+components.html(
+    """
+    <script>
+    const meta = window.parent.document.querySelector('meta[name="viewport"]');
+    if (meta) {
+        // 画面幅を1024px(PCサイズ)と認識させ、手動ズームを許可する
+        meta.setAttribute('content', 'width=1024, user-scalable=yes');
+    }
+    </script>
+    """,
+    height=0
+)
+
 st.markdown("""
 <style>
     .stApp {
@@ -25,20 +40,20 @@ st.markdown("""
     }
 
     .block-container {
-        padding-top: 3rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
 
-    /* ボタンの調整：絵文字が映えるようにフォントサイズを大きく */
+    /* ボタンの調整：文字がはみ出ないようにサイズを最適化 */
     div.stButton > button {
         border-radius: 12px !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
         border: 1px solid #e0e0e0 !important;
         font-weight: 600 !important;
         padding: 6px 4px !important;
-        font-size: 16px !important; 
-        min-height: 50px !important;
+        font-size: 13px !important; /* ← 16pxから13pxに下げてはみ出しを防止 */
+        min-height: 44px !important;
         line-height: 1.3 !important;
         white-space: normal !important;
         word-break: break-word !important;
@@ -72,14 +87,14 @@ st.markdown("""
         .tt-header { color: #ccc; }
     }
 
-    /* 確定コマ（19文字が収まるように調整） */
+    /* 確定コマ（19文字表示） */
     .confirmed-cell {
         background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         color: white;
         border-radius: 12px;
         box-shadow: 0 4px 10px rgba(0, 242, 254, 0.2);
         padding: 6px 4px;
-        font-size: 10px; 
+        font-size: 11px;
         text-align: center;
         font-weight: bold;
         height: 100%;
@@ -107,28 +122,7 @@ st.markdown("""
             border: 2px dashed rgba(255,255,255,0.1);
         }
     }
-
-    @media screen and (max-width: 768px) {
-        .block-container {
-            overflow-x: auto !important; 
-            padding-left: 0.5rem !important;
-            padding-right: 0.5rem !important;
-        }
-        div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            min-width: 600px !important;
-            gap: 4px !important;
-        }
-        div[data-testid="column"] {
-            width: auto !important;
-            flex: 1 1 0% !important;
-            min-width: 0 !important;
-        }
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div:first-child {
-            flex: 0.5 1 0% !important;
-        }
-    }
+    /* 手動ズームを許可したため、以前の横スクロール用ハックは削除しました */
 </style>
 """, unsafe_allow_html=True)
 
@@ -163,7 +157,6 @@ def save_and_rerun():
         save_users(users)
     st.rerun()
 
-# ⚠️ エラー解消：@st.cache_resource を外し、直接呼び出す
 cookie_manager = stx.CookieManager()
 
 # ==========================================
@@ -210,7 +203,6 @@ if 'current_page' not in st.session_state:
 # 5. アカウント画面（クッキーによる自動ログイン）
 # ==========================================
 if not st.session_state.logged_in:
-    # ブラウザに保存されたクッキーをチェック
     cached_user = cookie_manager.get(cookie="current_user")
     if cached_user:
         users = load_users()
@@ -254,7 +246,6 @@ if not st.session_state.logged_in:
                 st.session_state.registered = users[user_input]["registered"]
                 st.session_state.bookmarks = users[user_input]["bookmarks"]
                 
-                # ログイン状態を1ヶ月間（2592000秒）クッキーに保存
                 cookie_manager.set("current_user", user_input, max_age=2592000)
                 time.sleep(0.5)
                 st.rerun()
@@ -346,14 +337,13 @@ def draw_confirmed_timetable(registered_data, semester):
             with cols[i+1]:
                 course = next((c for c in registered_data.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                 if course:
-                    # ★ 授業名を最大19文字に変更
                     short_name = course['授業名'][:19]
                     st.markdown(f"<div class='confirmed-cell'>{short_name}</div>", unsafe_allow_html=True)
                 else:
                     st.markdown("<div class='empty-cell'></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 8. ナビゲーション（★絵文字のみに変更）
+# 8. ナビゲーション
 # ==========================================
 nav1, nav2, nav3, nav4 = st.columns(4)
 if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True, help="マイ時間割"):
@@ -379,7 +369,6 @@ st.divider()
 # ------------------------------------------
 if st.session_state.current_page == "tt":
     col_mode1, col_mode2 = st.columns(2)
-    # ★ 絵文字のみに変更
     view_mode = st.radio("モード切替", ["🛠️", "👀"], horizontal=True, label_visibility="collapsed", help="左:編集モード / 右:確定表示")
     
     if 'current_semester' not in st.session_state: 
@@ -489,7 +478,6 @@ if st.session_state.current_page == "tt":
                                     cid = b['授業コード']
                                     is_reg = cid in st.session_state.registered[semester]
                                     
-                                    # ★ 最大19文字表示
                                     display_name = b['授業名'][:19]
                                     btn_label = f"✅{display_name}" if is_reg else f"⭐{display_name}"
                                         
