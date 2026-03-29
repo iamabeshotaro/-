@@ -30,14 +30,14 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* ボタンの調整：絵文字が映えるようにフォントサイズを少し大きく */
+    /* ボタンの調整：絵文字が映えるようにフォントサイズを大きく */
     div.stButton > button {
         border-radius: 12px !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
         border: 1px solid #e0e0e0 !important;
         font-weight: 600 !important;
         padding: 6px 4px !important;
-        font-size: 14px !important; 
+        font-size: 16px !important; 
         min-height: 50px !important;
         line-height: 1.3 !important;
         white-space: normal !important;
@@ -79,7 +79,7 @@ st.markdown("""
         border-radius: 12px;
         box-shadow: 0 4px 10px rgba(0, 242, 254, 0.2);
         padding: 6px 4px;
-        font-size: 10px; /* 19文字でも圧迫感がないサイズ */
+        font-size: 10px; 
         text-align: center;
         font-weight: bold;
         height: 100%;
@@ -163,11 +163,8 @@ def save_and_rerun():
         save_users(users)
     st.rerun()
 
-# クッキーマネージャーの初期化（1ヶ月ログイン保持用）
-@st.cache_resource
-def get_cookie_manager():
-    return stx.CookieManager()
-cookie_manager = get_cookie_manager()
+# ⚠️ エラー解消：@st.cache_resource を外し、直接呼び出す
+cookie_manager = stx.CookieManager()
 
 # ==========================================
 # 3. データの準備
@@ -259,7 +256,7 @@ if not st.session_state.logged_in:
                 
                 # ログイン状態を1ヶ月間（2592000秒）クッキーに保存
                 cookie_manager.set("current_user", user_input, max_age=2592000)
-                time.sleep(0.5) # クッキーの保存を少し待つ
+                time.sleep(0.5)
                 st.rerun()
             else:
                 st.error("⚠️ 間違っています")
@@ -280,7 +277,7 @@ with st.sidebar:
     
     st.divider()
     if st.button("🚪 ログアウト", use_container_width=True):
-        cookie_manager.delete("current_user") # クッキーを削除
+        cookie_manager.delete("current_user")
         st.session_state.logged_in = False
         st.session_state.current_user = None
         time.sleep(0.5)
