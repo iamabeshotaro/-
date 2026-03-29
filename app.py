@@ -4,17 +4,19 @@ import re
 import json
 import hashlib
 import os
-import time  # 手動入力授業のID生成に使用
+import time
 
 # ==========================================
 # 1. ページ設定とスマホ向けCSS
 # ==========================================
+# サービス名を「時間割概論」に変更
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
+    /* 上部の余白を広げて（1rem -> 4rem）、Streamlitのヘッダーに被らないように修正 */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 4rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
@@ -136,7 +138,8 @@ if 'current_page' not in st.session_state:
 # 5. アカウント画面
 # ==========================================
 if not st.session_state.logged_in:
-    st.title("時間割概論")
+    # サービス名変更
+    st.title("📚 時間割概論")
     st.write("アカウントにログインまたは新規登録してください。")
     
     auth_mode = st.radio("メニュー", ["ログイン", "新規登録"], horizontal=True)
@@ -246,16 +249,16 @@ def draw_confirmed_timetable(registered_data, semester):
 # 8. ナビゲーション
 # ==========================================
 nav1, nav2, nav3, nav4 = st.columns(4)
-if nav1.button("🗓️ マイ", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
+if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
     st.session_state.current_page = "tt"
     st.rerun()
-if nav2.button("🔍 検索", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
+if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
     st.session_state.current_page = "search"
     st.rerun()
-if nav3.button("⭐ 候補", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
+if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
     st.session_state.current_page = "bk"
     st.rerun()
-if nav4.button("🌍 みんな", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
+if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
     st.session_state.current_page = "public"
     st.rerun()
 st.divider()
@@ -281,7 +284,6 @@ if st.session_state.current_page == "tt":
     if view_mode == "👀 確定表示":
         draw_confirmed_timetable(st.session_state.registered, semester)
     else:
-        # 操作エリア（展開時）
         if st.session_state.active_slot:
             d = st.session_state.active_slot['day']
             p = st.session_state.active_slot['period']
@@ -313,7 +315,6 @@ if st.session_state.current_page == "tt":
                         save_and_rerun()
                     display_links(row.to_dict())
 
-            # ★ 新機能：手動入力エリア
             st.divider()
             st.write("✏️ **リストにない授業を手動で追加**")
             with st.expander("＋ オリジナルの授業を作成する"):
@@ -326,7 +327,6 @@ if st.session_state.current_page == "tt":
                         if not c_name.strip():
                             st.error("授業名を入力してください")
                         else:
-                            # 一意のIDを生成 (MY_ + タイムスタンプ)
                             custom_id = f"MY_{int(time.time())}"
                             custom_course = {
                                 "授業コード": custom_id,
@@ -344,7 +344,6 @@ if st.session_state.current_page == "tt":
                             st.session_state.active_slot = None
                             save_and_rerun()
 
-        # 時間割表本体
         else:
             days = ["月", "火", "水", "木", "金"]
             cols = st.columns([0.6, 1, 1, 1, 1, 1])
@@ -360,7 +359,6 @@ if st.session_state.current_page == "tt":
                                 for b in bks_in_cell:
                                     cid = b['授業コード']
                                     is_reg = cid in st.session_state.registered[semester]
-                                    # カスタム授業の場合はコードではなく名前の先頭を表示
                                     btn_label = f"✅{cid}" if is_reg else f"⭐{cid}"
                                     if cid.startswith("MY_"):
                                         short_name = b['授業名'][:3]
@@ -424,7 +422,6 @@ elif st.session_state.current_page == "bk":
     for b in st.session_state.bookmarks:
         with st.container(border=True):
             t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(b)])
-            # カスタム授業の場合はコードを「手動入力」と表示
             display_code = "手動入力" if b['授業コード'].startswith("MY_") else b['授業コード']
             st.write(f"**{display_code} | {b['授業名']}**")
             st.caption(f"{b['学期']} | {t_str} | {b['担当教員']}")
@@ -472,6 +469,13 @@ elif st.session_state.current_page == "public":
                 if st.button(like_btn_text, use_container_width=True):
                     if has_liked:
                         target_data['likes'].remove(my_id)
+                    else:
+                        target_data['likes'].append(my_id)
+                    save_users(users)
+                    st.rerun()
+
+            st.write(f"👤 **{selected_user}** さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
+            draw_confirmed_timetable(target_data['registered'], p_sem)
                     else:
                         target_data['likes'].append(my_id)
                     save_users(users)
