@@ -67,22 +67,26 @@ st.markdown("""
     }
 
     /* =========================================
-       ★ スマホの縦並び崩れを防止する魔法のコード
+       ★ スマホの狭い画面でも時間割を潰さず、横スクロールさせる
        ========================================= */
-    @media (max-width: 640px) {
-        /* カラムの折り返しを禁止し、絶対に横並びにする */
+    @media screen and (max-width: 768px) {
+        /* アプリ全体に最低限の広い幅（PC並み）を強制する */
+        .block-container {
+            min-width: 750px !important; 
+        }
+        /* 要素が縦に折り返される（縦並びになる）のを完全に防ぐ */
         div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 2px !important; /* スマホでは隙間を極力減らす */
+            gap: 4px !important;
         }
-        /* 各カラムの幅を均等に圧縮する */
+        /* 各カラムの幅を維持する */
         div[data-testid="column"] {
             width: auto !important;
             flex: 1 1 0% !important;
             min-width: 0 !important;
         }
-        /* 6列あるブロック（時間割グリッド）の1列目（時限の数字）だけ少し細くする */
+        /* 時間割の1列目（時限の数字）だけ細くする */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div:first-child {
             flex: 0.6 1 0% !important;
         }
@@ -287,16 +291,16 @@ def draw_confirmed_timetable(registered_data, semester):
 # 8. ナビゲーション
 # ==========================================
 nav1, nav2, nav3, nav4 = st.columns(4)
-if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
+if nav1.button("🗓️ マイ", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
     st.session_state.current_page = "tt"
     st.rerun()
-if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
+if nav2.button("🔍 検索", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
     st.session_state.current_page = "search"
     st.rerun()
-if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
+if nav3.button("⭐ 候補", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
     st.session_state.current_page = "bk"
     st.rerun()
-if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
+if nav4.button("🌍 みんな", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
     st.session_state.current_page = "public"
     st.rerun()
 st.divider()
