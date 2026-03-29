@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import re
 import json
@@ -10,23 +9,9 @@ import datetime
 import extra_streamlit_components as stx
 
 # ==========================================
-# 1. ページ設定とスマホ向けCSS (モダンUI化)
+# 1. ページ設定とスマホ向けCSS (ネイティブアプリ風)
 # ==========================================
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
-
-# ★ スマホでもPC版と同じように全体を表示し、手動で拡大・縮小(ズーム)できるようにする裏技
-components.html(
-    """
-    <script>
-    const meta = window.parent.document.querySelector('meta[name="viewport"]');
-    if (meta) {
-        // 画面幅を1024px(PCサイズ)と認識させ、手動ズームを許可する
-        meta.setAttribute('content', 'width=1024, user-scalable=yes');
-    }
-    </script>
-    """,
-    height=0
-)
 
 st.markdown("""
 <style>
@@ -40,19 +25,19 @@ st.markdown("""
     }
 
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 3rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
 
-    /* ボタンの調整：文字がはみ出ないようにサイズを最適化 */
+    /* 汎用ボタンのベース設定 */
     div.stButton > button {
         border-radius: 12px !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
         border: 1px solid #e0e0e0 !important;
         font-weight: 600 !important;
         padding: 6px 4px !important;
-        font-size: 13px !important; /* ← 16pxから13pxに下げてはみ出しを防止 */
+        font-size: 14px !important; 
         min-height: 44px !important;
         line-height: 1.3 !important;
         white-space: normal !important;
@@ -69,60 +54,115 @@ st.markdown("""
         }
     }
 
+    /* 時間割ブロックの余白消去 */
     div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        padding: 3px !important;
-        gap: 3px !important;
+        padding: 1px !important;
+        gap: 1px !important;
         background-color: transparent !important;
         border: none !important;
     }
-    
+
+    /* 確定コマ（PC用ベース） */
+    .confirmed-cell {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 242, 254, 0.2);
+        padding: 4px;
+        font-size: 10px; 
+        text-align: center;
+        font-weight: bold;
+        height: 100%;
+        min-height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        word-break: break-word;
+        line-height: 1.2;
+        overflow: hidden;
+    }
+    .empty-cell {
+        background-color: rgba(0,0,0,0.03);
+        border-radius: 8px;
+        border: 1px dashed rgba(0,0,0,0.1);
+        min-height: 45px;
+    }
+    @media (prefers-color-scheme: dark) {
+        .confirmed-cell {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 5px rgba(118, 75, 162, 0.3);
+        }
+        .empty-cell {
+            background-color: rgba(255,255,255,0.03);
+            border: 1px dashed rgba(255,255,255,0.1);
+        }
+    }
+
+    /* ヘッダー文字 */
     .tt-header {
         text-align: center;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
         color: #555;
     }
     @media (prefers-color-scheme: dark) {
         .tt-header { color: #ccc; }
     }
 
-    /* 確定コマ（19文字表示） */
-    .confirmed-cell {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        color: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 10px rgba(0, 242, 254, 0.2);
-        padding: 6px 4px;
-        font-size: 11px;
-        text-align: center;
-        font-weight: bold;
-        height: 100%;
-        min-height: 50px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        word-break: break-word;
-        line-height: 1.3;
-        overflow: hidden;
-    }
-    .empty-cell {
-        background-color: rgba(0,0,0,0.03);
-        border-radius: 12px;
-        border: 2px dashed rgba(0,0,0,0.1);
-        min-height: 50px;
-    }
-    @media (prefers-color-scheme: dark) {
+    /* =========================================
+       ★ 魔法のCSS: スマホで時間割(6列の行)だけをピタッと収める
+       ========================================= */
+    @media screen and (max-width: 768px) {
+        .block-container {
+            padding-left: 0.2rem !important;
+            padding-right: 0.2rem !important;
+        }
+
+        /* 要素が6個(時限+月火水木金)入っている行だけを横並びに強制 */
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 2px !important;
+            width: 100% !important;
+        }
+        
+        /* 6列の中の各カラム幅を自動で等分に縮小 */
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] {
+            width: auto !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* 1列目（時限の数字）は少しだけ細くする */
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child {
+            flex: 0.35 1 0% !important;
+        }
+
+        /* スマホ画面内のボタンやセルを極限までコンパクトに */
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
+            font-size: 8px !important;
+            padding: 0 !important;
+            min-height: 40px !important;
+            border-radius: 6px !important;
+            letter-spacing: -0.5px !important;
+        }
         .confirmed-cell {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            box-shadow: 0 4px 10px rgba(118, 75, 162, 0.3);
+            font-size: 8px !important;
+            min-height: 40px !important;
+            padding: 2px !important;
+            border-radius: 6px !important;
+            letter-spacing: -0.5px !important;
         }
         .empty-cell {
-            background-color: rgba(255,255,255,0.03);
-            border: 2px dashed rgba(255,255,255,0.1);
+            min-height: 40px !important;
+            border-radius: 6px !important;
+        }
+        .tt-header {
+            font-size: 10px !important;
         }
     }
-    /* 手動ズームを許可したため、以前の横スクロール用ハックは削除しました */
 </style>
 """, unsafe_allow_html=True)
 
@@ -200,7 +240,7 @@ if 'current_page' not in st.session_state:
     st.session_state.current_page = "tt"
 
 # ==========================================
-# 5. アカウント画面（クッキーによる自動ログイン）
+# 5. アカウント画面
 # ==========================================
 if not st.session_state.logged_in:
     cached_user = cookie_manager.get(cookie="current_user")
