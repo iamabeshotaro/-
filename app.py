@@ -8,7 +8,7 @@ import os
 # ==========================================
 # 1. ページ設定とスマホ向けCSS
 # ==========================================
-st.set_page_config(page_title="みんなの時間割", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
