@@ -480,6 +480,3 @@ elif st.session_state.current_page == "public":
                         target_data['likes'].append(my_id)
                     save_users(users)
                     st.rerun()
-
-            st.write(f"👤 **{selected_user}** さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
-            draw_confirmed_timetable(target_data['registered'], p_sem)
