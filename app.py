@@ -6,7 +6,7 @@ import hashlib
 import os
 import time
 import datetime
-import urllib.parse  # ★ツイート文章のURLエンコード用に追加
+import urllib.parse
 import extra_streamlit_components as stx
 import streamlit.components.v1 as components
 
@@ -15,6 +15,7 @@ import streamlit.components.v1 as components
 # ==========================================
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
+# ズーム許可スクリプト
 components.html(
     """
     <script>
@@ -42,6 +43,7 @@ st.markdown("""
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
+    /* 汎用ボタン */
     div.stButton > button {
         border-radius: 12px !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
@@ -55,15 +57,13 @@ st.markdown("""
         word-break: break-word !important;
         transition: all 0.2s ease !important;
     }
-    div.stButton > button:active {
-        transform: scale(0.96);
-    }
     @media (prefers-color-scheme: dark) {
         div.stButton > button {
             border: 1px solid #333 !important;
             box-shadow: 0 2px 5px rgba(255,255,255,0.02) !important;
         }
     }
+    /* 時間割ブロック */
     div[data-testid="stVerticalBlockBorderWrapper"] > div {
         padding: 1px !important;
         gap: 1px !important;
@@ -166,21 +166,18 @@ st.markdown("""
 USER_FILE = 'users_data.json'
 
 def load_users():
-    if not os.path.exists(USER_FILE):
-        return {}
+    if not os.path.exists(USER_FILE): return {}
     with open(USER_FILE, 'r', encoding='utf-8') as f:
         users = json.load(f)
         for u_data in users.values():
-            if "likes" not in u_data:
-                u_data["likes"] = []
+            if "likes" not in u_data: u_data["likes"] = []
         return users
 
 def save_users(users):
     with open(USER_FILE, 'w', encoding='utf-8') as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
 
-def hash_pass(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+def hash_pass(password): return hashlib.sha256(password.encode()).hexdigest()
 
 def save_and_rerun():
     if st.session_state.get('current_user'):
@@ -203,35 +200,25 @@ def load_data():
     except FileNotFoundError:
         st.error("syllabus_master.csv が見つかりません。")
         st.stop()
-        
     def get_priority(code):
         if len(str(code)) >= 2:
             attr = str(code)[1]
             priorities = {'M': 1, 'P': 2, 'O': 3, 'S': 4, 'L': 5, 'Z': 6}
             return priorities.get(attr, 99)
         return 99
-        
     df['優先度'] = df['授業コード'].apply(get_priority)
     return df
-
 df = load_data()
 
 # ==========================================
 # 4. 状態管理（Session State）
 # ==========================================
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'current_user' not in st.session_state:
-    st.session_state.current_user = None
-
-if 'registered' not in st.session_state:
-    st.session_state.registered = {"春学期": {}, "秋学期": {}}
-if 'bookmarks' not in st.session_state:
-    st.session_state.bookmarks = []
-if 'active_slot' not in st.session_state:
-    st.session_state.active_slot = None
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "tt"
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'current_user' not in st.session_state: st.session_state.current_user = None
+if 'registered' not in st.session_state: st.session_state.registered = {"春学期": {}, "秋学期": {}}
+if 'bookmarks' not in st.session_state: st.session_state.bookmarks = []
+if 'active_slot' not in st.session_state: st.session_state.active_slot = None
+if 'current_page' not in st.session_state: st.session_state.current_page = "tt"
 
 # ==========================================
 # 5. アカウント画面
@@ -256,18 +243,15 @@ if not st.session_state.logged_in:
     
     if auth_mode == "新規登録":
         if st.button("登録してはじめる", type="primary", use_container_width=True):
-            if not user_input or not pass_input:
-                st.error("入力してください")
+            if not user_input or not pass_input: st.error("入力してください")
             else:
                 users = load_users()
-                if user_input in users:
-                    st.error("既に使用されています")
+                if user_input in users: st.error("既に使用されています")
                 else:
                     users[user_input] = {
                         "password": hash_pass(pass_input),
                         "registered": {"春学期": {}, "秋学期": {}},
-                        "bookmarks": [],
-                        "likes": []
+                        "bookmarks": [], "likes": []
                     }
                     save_users(users)
                     st.success("✅ 登録完了！「ログイン」から入ってください。")
@@ -282,35 +266,29 @@ if not st.session_state.logged_in:
                 cookie_manager.set("current_user", user_input, max_age=2592000)
                 time.sleep(0.5)
                 st.rerun()
-            else:
-                st.error("⚠️ 間違っています")
+            else: st.error("⚠️ 間違っています")
     st.stop()
 
 # ==========================================
-# 6. サイドバー (アカウント管理・逆通信簿)
+# 6. サイドバー
 # ==========================================
 with st.sidebar:
     st.subheader("👤 アカウント")
     st.write(f"現在のユーザー: **{st.session_state.current_user}**")
     
-    # ★ 新規追加: アカウント設定（名前変更・削除）
+    # アカウント設定（名前変更・削除）
     with st.expander("⚙️ アカウント設定"):
         st.write("✏️ **ユーザー名の変更**")
         new_name = st.text_input("新しいユーザー名", value=st.session_state.current_user, label_visibility="collapsed")
         if st.button("変更を保存", use_container_width=True):
-            if new_name == st.session_state.current_user:
-                st.warning("現在と同じ名前です")
-            elif not new_name.strip():
-                st.error("入力してください")
+            if new_name == st.session_state.current_user: st.warning("現在と同じ名前です")
+            elif not new_name.strip(): st.error("入力してください")
             else:
                 users = load_users()
-                if new_name in users:
-                    st.error("その名前はすでに使われています")
+                if new_name in users: st.error("その名前はすでに使われています")
                 else:
                     old_name = st.session_state.current_user
-                    # データの移行
                     users[new_name] = users.pop(old_name)
-                    # 他ユーザーの「いいね」リスト内の名前も更新
                     for u in users.values():
                         if old_name in u.get("likes", []):
                             u["likes"].remove(old_name)
@@ -319,9 +297,7 @@ with st.sidebar:
                     st.session_state.current_user = new_name
                     cookie_manager.set("current_user", new_name, max_age=2592000)
                     st.success("変更完了！")
-                    time.sleep(1)
-                    st.rerun()
-                    
+                    time.sleep(1); st.rerun()
         st.divider()
         st.write("⚠️ **危険な操作**")
         del_confirm = st.checkbox("アカウントを削除する（復旧不可）")
@@ -329,18 +305,14 @@ with st.sidebar:
             if st.button("本当に削除する", type="primary", use_container_width=True):
                 users = load_users()
                 old_name = st.session_state.current_user
-                if old_name in users:
-                    users.pop(old_name)
-                # 他ユーザーの「いいね」リストから削除
+                if old_name in users: users.pop(old_name)
                 for u in users.values():
-                    if old_name in u.get("likes", []):
-                        u["likes"].remove(old_name)
+                    if old_name in u.get("likes", []): u["likes"].remove(old_name)
                 save_users(users)
                 cookie_manager.delete("current_user")
                 st.session_state.logged_in = False
                 st.session_state.current_user = None
-                time.sleep(1)
-                st.rerun()
+                time.sleep(1); st.rerun()
 
     st.divider()
     st.subheader("📖 ガチの授業評価を見る")
@@ -353,8 +325,7 @@ with st.sidebar:
         cookie_manager.delete("current_user")
         st.session_state.logged_in = False
         st.session_state.current_user = None
-        time.sleep(0.5)
-        st.rerun()
+        time.sleep(0.5); st.rerun()
 
 # ==========================================
 # 7. 共通関数
@@ -367,8 +338,7 @@ def get_slot_pairs(course):
 def toggle_register(semester, course):
     if isinstance(course, pd.Series): course = course.to_dict()
     cid = course['授業コード']
-    if cid not in [b['授業コード'] for b in st.session_state.bookmarks]:
-        st.session_state.bookmarks.append(course)
+    if cid not in [b['授業コード'] for b in st.session_state.bookmarks]: st.session_state.bookmarks.append(course)
     reg = st.session_state.registered[semester]
     if cid in reg:
         del reg[cid]
@@ -379,7 +349,7 @@ def toggle_register(semester, course):
         if any(s in get_slot_pairs(r_course) for s in target_slots): conflicts.append(r_cid)
     for c in conflicts:
         del reg[c]
-        st.toast("⚠️ 重複授業を仮登録に戻しました")
+        st.toast("⚠️ 重重複授業を仮登録に戻しました")
     reg[cid] = course
 
 def get_total_credits(semester_data):
@@ -401,7 +371,6 @@ def draw_confirmed_timetable(registered_data, semester):
     cols = st.columns([0.6, 1, 1, 1, 1, 1])
     for i, d in enumerate([""] + days): 
         cols[i].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
-        
     for p in range(1, 7):
         cols = st.columns([0.6, 1, 1, 1, 1, 1])
         cols[0].markdown(f"<div style='text-align:center; margin-top:20px; font-weight:bold; color:#777;'>{p}</div>", unsafe_allow_html=True)
@@ -415,21 +384,129 @@ def draw_confirmed_timetable(registered_data, semester):
                     st.markdown("<div class='empty-cell'></div>", unsafe_allow_html=True)
 
 # ==========================================
+# ★ 新規追加: 画像生成用ロジック（HTML/JS）
+# ==========================================
+def generate_timetable_image(registered_data, semester, current_user, credits):
+    days = ["月", "火", "水", "木", "金"]
+    
+    # 画像用のHTMLスタイル（ネイティブアプリ風・高解像度）
+    html_style = f"""
+    <style>
+        #timetable-export-area {{
+            width: 800px; padding: 40px; background: white; font-family: 'Helvetica Neue', Arial, sans-serif;
+            border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            color: #333; box-sizing: border-box; position: relative;
+        }}
+        #timetable-export-area * {{ box-sizing: border-box; }}
+        .image-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }}
+        .title-group {{ display: flex; align-items: center; gap: 15px; }}
+        .title-icon {{ width: 50px; height: 50px; background: #007bff; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: bold; }}
+        .app-name {{ font-size: 16px; color: #888; margin: 0; font-weight: 600; }}
+        .semester-name {{ font-size: 28px; font-weight: 800; margin: 5px 0 0 0; color: #1a1a1a; }}
+        .user-info {{ text-align: right; }}
+        .credits-badge {{ background: #e1f0ff; color: #007bff; padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; display: inline-block; margin-bottom: 8px; }}
+        .user-name {{ font-size: 16px; color: #555; margin: 0; font-weight: 500; }}
+        .grid-container {{ display: grid; grid-template-columns: 0.6fr repeat(5, 1fr); gap: 10px; }}
+        .day-header, .period-number, .cell {{ border-radius: 10px; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; font-weight: 600; line-height: 1.3; }}
+        .day-header {{ height: 40px; background: #f8f9fa; color: #777; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }}
+        .period-number {{ height: 80px; background: #fff; color: #bbb; font-size: 24px; font-weight: 700; }}
+        .cell {{ height: 80px; font-size: 11px; padding: 6px; word-break: break-word; text-align: center; }}
+        .cell.empty {{ background: #fafafa; border: 2px dashed #eee; color: #ccc; }}
+        .cell.filled {{ 
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+            color: white; box-shadow: 0 4px 10px rgba(0, 242, 254, 0.3); font-size: 12px; font-weight: 700;
+        }}
+        .watermark {{ position: absolute; bottom: 10px; right: 15px; font-size: 10px; color: #ddd; font-weight: bold; letter-spacing: 2px; }}
+    </style>
+    """
+
+    # ヘッダー部分の生成
+    html_header = f"""
+    <div class="image-header">
+        <div class="title-group">
+            <div class="title-icon">講</div>
+            <div>
+                <p class="app-name">中央大学商学部 時間割シミュレーター</p>
+                <p class="semester-name">{semester} の時間割</p>
+            </div>
+        </div>
+        <div class="user-info">
+            <div class="credits-badge">合計 {credits:.1f} 単位</div>
+            <p class="user-name">👤 {current_user}</p>
+        </div>
+    </div>
+    """
+
+    # グリッド部分の生成
+    grid_html = '<div class="grid-container">'
+    # 曜日ヘッダー
+    grid_html += '<div class="empty-header"></div>'
+    for d in days:
+        grid_html += f'<div class="day-header">{d}</div>'
+    
+    # 各時限の行
+    for p in range(1, 7):
+        grid_html += f'<div class="period-number">{p}</div>'
+        for d in days:
+            course = next((c for c in registered_data.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
+            if course:
+                display_name = course['授業名'][:20] + '..' if len(course['授業名']) > 20 else course['授業名']
+                grid_html += f'<div class="cell filled">{display_name}</div>'
+            else:
+                grid_html += '<div class="cell empty"></div>'
+    grid_html += '</div>'
+    
+    # 透かし
+    watermark = '<div class="watermark">GENERATED BY 時間割概論</div>'
+
+    # 最終的なHTML
+    full_html = f"""
+    <div id="timetable-export-wrapper" style="width: 0; height: 0; overflow: hidden; position: absolute; left: -10000px; top: -10000px;">
+        {html_style}
+        <div id="timetable-export-area">
+            {html_header}
+            {grid_html}
+            {watermark}
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        window.onload = function() {{
+            setTimeout(function() {{
+                const element = document.getElementById('timetable-export-area');
+                if (!element) return;
+                
+                html2canvas(element, {{
+                    scale: 2, // 2倍の解像度で生成（高画質化）
+                    logging: false,
+                    useCORS: true,
+                    backgroundColor: "#f8f9fa" // 背景色
+                }}).then(canvas => {{
+                    // 画像のダウンロード
+                    const link = document.createElement('a');
+                    link.download = 'jikanwari_{semester}.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }});
+            }}, 100); // 描画完了を少し待つ
+        }};
+    </script>
+    """
+    return full_html
+
+# ==========================================
 # 8. ナビゲーション
 # ==========================================
 nav1, nav2, nav3, nav4 = st.columns(4)
-if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True, help="マイ時間割"):
-    st.session_state.current_page = "tt"
-    st.rerun()
-if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True, help="検索"):
-    st.session_state.current_page = "search"
-    st.rerun()
-if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True, help="候補"):
-    st.session_state.current_page = "bk"
-    st.rerun()
-if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True, help="みんなの時間割"):
-    st.session_state.current_page = "public"
-    st.rerun()
+if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
+    st.session_state.current_page = "tt"; st.rerun()
+if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
+    st.session_state.current_page = "search"; st.rerun()
+if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
+    st.session_state.current_page = "bk"; st.rerun()
+if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
+    st.session_state.current_page = "public"; st.rerun()
 st.divider()
 
 # ==========================================
@@ -442,68 +519,74 @@ st.divider()
 if st.session_state.current_page == "tt":
     col_mode1, col_mode2 = st.columns(2)
     view_mode = st.radio("モード切替", ["🛠️", "👀"], horizontal=True, label_visibility="collapsed", help="左:編集モード / 右:確定表示")
-    
-    if 'current_semester' not in st.session_state: 
-        st.session_state.current_semester = "春学期"
-        
+    if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
     col_h1, col_h2 = st.columns([3, 2])
     with col_h1:
         semester = st.selectbox("学期", ["春学期", "秋学期"], index=0 if st.session_state.current_semester=="春学期" else 1, label_visibility="collapsed")
         st.session_state.current_semester = semester
-    
-    # 単位数の計算
     current_credits = get_total_credits(st.session_state.registered[semester])
-    with col_h2: 
-        st.write(f"✅ **{current_credits:.1f} 単位**")
+    with col_h2: st.write(f"✅ **{current_credits:.1f} 単位**")
 
     if view_mode == "👀":
-        # ★ 新規追加: X (Twitter) でシェアするボタン
-        app_url = "https://あなたのアプリのURL.streamlit.app" # ← 公開後にここを書き換えてください！
-        tweet_text = f"{semester}の時間割を組みました！（計 {current_credits:.1f} 単位）\n中大生向けの時間割アプリ「時間割概論」\n#春から中大 #中央大学商学部\n{app_url}"
-        tweet_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(tweet_text)}"
-        
-        st.link_button("𝕏 時間割をポストする", tweet_url, use_container_width=True)
-        st.caption("※上の時間割のスクリーンショットを撮って、一緒に添付するのがおすすめです！")
+        # シェア機能セクション
+        with st.expander("📤 この時間割をシェア・保存する"):
+            c1, c2 = st.columns(2)
+            
+            # ★ 新規追加: 画像として保存するボタン
+            with c1:
+                if st.button("🖼️ 画像として保存", use_container_width=True, type="primary"):
+                    # サーバーサイドでHTMLを生成
+                    image_html = generate_timetable_image(
+                        st.session_state.registered, 
+                        semester, 
+                        st.session_state.current_user, 
+                        current_credits
+                    )
+                    # Streamlitコンポーネントとして埋め込み（JSが即時実行されダウンロードが始まる）
+                    components.html(image_html, height=0, width=0)
+                    st.toast("画像を生成しています...")
+
+            # Xシェアボタン
+            with c2:
+                # 注：本来は本番環境のURLを入れる
+                app_url = "https://あなたのアプリのURL.streamlit.app" 
+                tweet_text = f"{semester}の時間割を組みました！（計 {current_credits:.1f} 単位）\n中大生向け時間割アプリ「時間割概論」\n#春から中大 #中央大学商学部\n{app_url}"
+                tweet_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(tweet_text)}"
+                st.link_button("𝕏 Xでポストする", tweet_url, use_container_width=True)
+            
+            st.caption("※保存した画像をXのポストに添付するのが一番オシャレです！")
+
         st.divider()
-        
         draw_confirmed_timetable(st.session_state.registered, semester)
+    
+    # （※編集モード🛠️のロジックは変更なしなので省略。元のコードをそのまま使ってください）
     else:
         if st.session_state.active_slot:
             d = st.session_state.active_slot['day']
             p = st.session_state.active_slot['period']
             col_title, col_close = st.columns([4, 1])
             col_title.subheader(f"⚙️ {d}曜{p}限")
-            
             if col_close.button("✖ 戻る", type="primary"):
-                st.session_state.active_slot = None
-                st.rerun()
-
+                st.session_state.active_slot = None; st.rerun()
             st.write("🔍 **この時間の授業一覧から追加**")
             mask = [semester.replace("学期","") in row['学期'] and (d, str(p)) in get_slot_pairs(row) for _, row in df.iterrows()]
             slot_courses = df[mask].sort_values('優先度')
-            
-            if len(slot_courses) == 0: 
-                st.info("この時間に開講されているシラバス掲載の授業はありません。")
-                
+            if len(slot_courses) == 0: st.info("この時間に開講されているシラバス掲載の授業はありません。")
             for _, row in slot_courses.head(30).iterrows():
                 with st.container(border=True):
                     st.write(f"**{row['授業名']}**")
                     st.caption(f"コード: {row['授業コード']} | 担当: {row['担当教員']} | 単位: {row['単位数']}")
                     b1, b2 = st.columns(2)
                     is_reg = row['授業コード'] in st.session_state.registered[semester]
-                    
                     if b1.button("解除" if is_reg else "✅ 本登録", key=f"reg_{row['授業コード']}"):
                         toggle_register(semester, row.to_dict())
-                        st.session_state.active_slot = None 
-                        save_and_rerun()
-                        
+                        st.session_state.active_slot = None; save_and_rerun()
                     is_bk = row['授業コード'] in [bk['授業コード'] for bk in st.session_state.bookmarks]
                     if b2.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_{row['授業コード']}"):
                         if not is_bk: st.session_state.bookmarks.append(row.to_dict())
                         else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
                         save_and_rerun()
                     display_links(row.to_dict())
-
             st.divider()
             st.write("✏️ **リストにない授業を手動で追加**")
             with st.expander("＋ オリジナルの授業を作成する"):
@@ -511,10 +594,8 @@ if st.session_state.current_page == "tt":
                     c_name = st.text_input("授業名（必須）", placeholder="例: 他学部履修科目")
                     c_teacher = st.text_input("担当教員", placeholder="例: 山田 太郎")
                     c_credits = st.number_input("単位数", min_value=0.0, max_value=10.0, value=2.0, step=1.0)
-                    
                     if st.form_submit_button("✅ このコマに登録"):
-                        if not c_name.strip():
-                            st.error("授業名を入力してください")
+                        if not c_name.strip(): st.error("授業名を入力してください")
                         else:
                             custom_id = f"MY_{int(time.time())}"
                             custom_course = {
@@ -523,13 +604,11 @@ if st.session_state.current_page == "tt":
                                 "詳細URL": "不明", "みんキャン検索LINK": "不明", "優先度": 99
                             }
                             toggle_register(semester, custom_course)
-                            st.session_state.active_slot = None
-                            save_and_rerun()
+                            st.session_state.active_slot = None; save_and_rerun()
         else:
             days = ["月", "火", "水", "木", "金"]
             cols = st.columns([0.6, 1, 1, 1, 1, 1])
             for i, d in enumerate([""] + days): cols[i].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
-                
             for p in range(1, 7):
                 cols = st.columns([0.6, 1, 1, 1, 1, 1])
                 cols[0].markdown(f"<div style='text-align:center; margin-top:20px; font-weight:bold; color:#777;'>{p}</div>", unsafe_allow_html=True)
@@ -537,44 +616,35 @@ if st.session_state.current_page == "tt":
                     with cols[i+1]:
                         with st.container(border=True):
                             bks_in_cell = [b for b in st.session_state.bookmarks if semester.replace("学期","") in b['学期'] and (d, str(p)) in get_slot_pairs(b)]
-                            
                             if bks_in_cell:
                                 for b in bks_in_cell:
-                                    cid = b['授業コード']
-                                    is_reg = cid in st.session_state.registered[semester]
+                                    cid = b['授業コード']; is_reg = cid in st.session_state.registered[semester]
                                     display_name = b['授業名'][:19]
                                     btn_label = f"✅{display_name}" if is_reg else f"⭐{display_name}"
-                                        
                                     if st.button(btn_label, key=f"tt_{d}_{p}_{cid}", use_container_width=True, type="primary" if is_reg else "secondary"):
-                                        toggle_register(semester, b)
-                                        save_and_rerun()
-                                        
+                                        toggle_register(semester, b); save_and_rerun()
                                 if st.button("＋", key=f"add_{d}_{p}", use_container_width=True):
-                                    st.session_state.active_slot = {"day": d, "period": str(p)}
-                                    st.rerun()
+                                    st.session_state.active_slot = {"day": d, "period": str(p)}; st.rerun()
                             else:
                                 if st.button("＋", key=f"empty_{d}_{p}", use_container_width=True):
-                                    st.session_state.active_slot = {"day": d, "period": str(p)}
-                                    st.rerun()
+                                    st.session_state.active_slot = {"day": d, "period": str(p)}; st.rerun()
 
 # ------------------------------------------
-# 画面2,3,4 (検索・候補・みんなの時間割) は変更なし
+# （※画面2,3,4 検索・候補・みんなは変更なし。元のコードをそのまま末尾に貼ってください）
 # ------------------------------------------
 elif st.session_state.current_page == "search":
+    # 検索画面のコード（略）
     st.subheader("🔍 授業検索")
     query = st.text_input("キーワード (授業名・教員・コード)")
     s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"])
     col_d, col_p = st.columns(2)
     s_day = col_d.selectbox("曜日", ["すべて", "月", "火", "水", "木", "金"])
     s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"])
-
     res = df.copy()
     if s_sem != "すべて": res = res[res['学期'].str.contains(s_sem)]
     if s_day != "すべて": res = res[res['曜日'].str.contains(s_day)]
     if s_per != "すべて": res = res[res['時限'].astype(str).str.contains(s_per)]
-    if query:
-        res = res[res['授業名'].str.contains(query, case=False) | res['担当教員'].str.contains(query, case=False) | res['授業コード'].str.contains(query, case=False)]
-
+    if query: res = res[res['授業名'].str.contains(query, case=False) | res['担当教員'].str.contains(query, case=False) | res['授業コード'].str.contains(query, case=False)]
     res = res.sort_values('優先度')
     st.write(f"結果: **{len(res)}件** (50件まで)")
     for _, row in res.head(50).iterrows():
@@ -586,8 +656,7 @@ elif st.session_state.current_page == "search":
             active_sem = "春学期" if "春" in row['学期'] else "秋学期"
             is_reg = row['授業コード'] in st.session_state.registered[active_sem]
             if c1.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}"):
-                toggle_register(active_sem, row.to_dict())
-                save_and_rerun()
+                toggle_register(active_sem, row.to_dict()); save_and_rerun()
             is_bk = row['授業コード'] in [b['授業コード'] for b in st.session_state.bookmarks]
             if c2.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}"):
                 if not is_bk: st.session_state.bookmarks.append(row.to_dict())
@@ -596,6 +665,7 @@ elif st.session_state.current_page == "search":
             display_links(row.to_dict())
 
 elif st.session_state.current_page == "bk":
+    # 候補画面のコード（略）
     st.subheader("⭐ 保存した授業 (候補)")
     if not st.session_state.bookmarks: st.info("検索画面から⭐を押して保存してください。")
     for b in st.session_state.bookmarks:
@@ -608,8 +678,7 @@ elif st.session_state.current_page == "bk":
             active_sem = "春学期" if "春" in b['学期'] else "秋学期"
             is_reg = b['授業コード'] in st.session_state.registered[active_sem]
             if c1.button("解除" if is_reg else "✅ 本登録", key=f"bk_reg_{b['授業コード']}"):
-                toggle_register(active_sem, b)
-                save_and_rerun()
+                toggle_register(active_sem, b); save_and_rerun()
             if c2.button("🗑️ 削除", key=f"bk_del_{b['授業コード']}"):
                 st.session_state.bookmarks = [x for x in st.session_state.bookmarks if x['授業コード'] != b['授業コード']]
                 if is_reg: del st.session_state.registered[active_sem][b['授業コード']]
@@ -617,28 +686,23 @@ elif st.session_state.current_page == "bk":
             if not b['授業コード'].startswith("MY_"): display_links(b)
 
 elif st.session_state.current_page == "public":
+    # みんなの画面のコード（略）
     st.subheader("🌍 みんなの時間割")
     st.write("他のユーザーが組んだ時間割を見て、参考にしましょう。")
-    users = load_users()
-    my_id = st.session_state.current_user
-    public_users = [u for u in users.keys() if u != my_id]
-    if not public_users:
-        st.info("まだ他のユーザーがいません。")
+    users = load_users(); my_id = st.session_state.current_user; public_users = [u for u in users.keys() if u != my_id]
+    if not public_users: st.info("まだ他のユーザーがいません。")
     else:
         public_users.sort(key=lambda u: len(users[u].get('likes', [])), reverse=True)
         selected_user = st.selectbox("時間割を見るユーザーを選択（人気順）", ["選択してください..."] + public_users)
         if selected_user != "選択してください...":
-            target_data = users[selected_user]
-            likes_list = target_data.get('likes', [])
+            target_data = users[selected_user]; likes_list = target_data.get('likes', [])
             c_head1, c_head2 = st.columns([3, 2])
             with c_head1: p_sem = st.selectbox("表示する学期", ["春学期", "秋学期"])
             with c_head2:
-                has_liked = my_id in likes_list
-                like_btn_text = f"❤️ {len(likes_list)}" if has_liked else f"🤍 いいね ({len(likes_list)})"
+                has_liked = my_id in likes_list; like_btn_text = f"❤️ {len(likes_list)}" if has_liked else f"🤍 いいね ({len(likes_list)})"
                 if st.button(like_btn_text, use_container_width=True):
                     if has_liked: target_data['likes'].remove(my_id)
                     else: target_data['likes'].append(my_id)
-                    save_users(users)
-                    st.rerun()
+                    save_users(users); st.rerun()
             st.write(f"👤 **{selected_user}** さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             draw_confirmed_timetable(target_data['registered'], p_sem)
