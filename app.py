@@ -9,7 +9,7 @@ import time  # 手動入力授業のID生成に使用
 # ==========================================
 # 1. ページ設定とスマホ向けCSS
 # ==========================================
-st.set_page_config(page_title="中大シラバス時間割", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
