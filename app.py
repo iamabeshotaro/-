@@ -249,16 +249,16 @@ def draw_confirmed_timetable(registered_data, semester):
 # 8. ナビゲーション
 # ==========================================
 nav1, nav2, nav3, nav4 = st.columns(4)
-if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
+if nav1.button("🗓️ マイ", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True):
     st.session_state.current_page = "tt"
     st.rerun()
-if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
+if nav2.button("🔍 検索", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True):
     st.session_state.current_page = "search"
     st.rerun()
-if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
+if nav3.button("⭐ 候補", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True):
     st.session_state.current_page = "bk"
     st.rerun()
-if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
+if nav4.button("🌍 みんな", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True):
     st.session_state.current_page = "public"
     st.rerun()
 st.divider()
@@ -476,7 +476,3 @@ elif st.session_state.current_page == "public":
 
             st.write(f"👤 **{selected_user}** さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             draw_confirmed_timetable(target_data['registered'], p_sem)
-                    else:
-                        target_data['likes'].append(my_id)
-                    save_users(users)
-                    st.rerun()
