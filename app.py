@@ -67,27 +67,60 @@ st.markdown("""
     }
 
     /* =========================================
-       ★ スマホの縦並び崩れを防止する魔法のコード
+       ★ スマホの縦画面を禁止し、横画面を促すUI
        ========================================= */
-    @media (max-width: 640px) {
-        /* カラムの折り返しを禁止し、絶対に横並びにする */
+    .portrait-blocker {
+        display: none;
+    }
+    /* 画面幅が狭く（スマホ）、かつ縦向き（portrait）の時だけ発動 */
+    @media screen and (max-width: 768px) and (orientation: portrait) {
+        .portrait-blocker {
+            display: flex !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--secondary-background-color);
+            z-index: 99999999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        .portrait-blocker::after {
+            content: "📱\\A\\Aスマホを横向きにしてください\\A\\A横画面にすると\\A時間割がきれいに表示されます 🔄";
+            white-space: pre-wrap;
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        /* 裏側のアプリを見えなくする */
+        div[data-testid="stAppViewContainer"] > div:first-child {
+            display: none !important;
+        }
+    }
+
+    /* 念のため横画面時のレイアウト崩れも防止 */
+    @media screen and (max-width: 900px) and (orientation: landscape) {
         div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 2px !important; /* スマホでは隙間を極力減らす */
+            gap: 2px !important;
         }
-        /* 各カラムの幅を均等に圧縮する */
         div[data-testid="column"] {
             width: auto !important;
             flex: 1 1 0% !important;
             min-width: 0 !important;
         }
-        /* 6列あるブロック（時間割グリッド）の1列目（時限の数字）だけ少し細くする */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div:first-child {
             flex: 0.6 1 0% !important;
         }
     }
 </style>
+<div class="portrait-blocker"></div>
 """, unsafe_allow_html=True)
 
 # ==========================================
