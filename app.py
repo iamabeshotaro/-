@@ -69,7 +69,7 @@ st.markdown("""
 
     /* 純粋なHTMLテーブルを用いた美しく高密度な時間割 */
     .custom-timetable {
-        width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px;
+        width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 5px;
     }
     .custom-timetable th {
         background-color: transparent; color: #666; font-size: 12px;
@@ -201,9 +201,9 @@ if 'current_page' not in st.session_state:
 # 5. アカウント画面
 # ==========================================
 if not st.session_state.logged_in:
-    # クッキーの読み込み（強制ログアウトフラグが立っていない場合のみ自動ログイン）
+    # ⚠️ 修正：手動ログアウト直後はクッキーを無視して自動ログインをブロックする
     cached_user = cookie_manager.get(cookie="current_user")
-    if cached_user and not st.session_state.get('force_logout', False):
+    if cached_user and not st.session_state.get('manual_logout', False):
         users = load_users()
         if cached_user in users:
             st.session_state.logged_in = True
@@ -211,11 +211,9 @@ if not st.session_state.logged_in:
             st.session_state.registered = users[cached_user]["registered"]
             st.session_state.bookmarks = users[cached_user]["bookmarks"]
             st.rerun()
-    elif st.session_state.get('force_logout', False):
-        # 1度ログアウト処理をスルーしたらフラグをリセット
-        st.session_state.force_logout = False
 
-    st.title("📚 時間割概論")
+    st.title("🥐 C-krat (シークラット)")
+    st.write("中央大学 商学部向け 時間割＆シラバス検索ツール")
     st.write("アカウントにログインまたは新規登録してください。")
     
     auth_mode = st.radio("メニュー", ["ログイン", "新規登録"], horizontal=True)
@@ -247,6 +245,7 @@ if not st.session_state.logged_in:
                 st.session_state.current_user = user_input
                 st.session_state.registered = users[user_input]["registered"]
                 st.session_state.bookmarks = users[user_input]["bookmarks"]
+                st.session_state.manual_logout = False # 手動ログアウトフラグを解除
                 
                 cookie_manager.set("current_user", user_input, max_age=2592000)
                 time.sleep(0.5)
@@ -256,16 +255,14 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==========================================
-# 6. サイドバー（アカウント設定追加）
+# 6. サイドバー
 # ==========================================
 with st.sidebar:
     st.subheader("👤 アカウント")
     st.write(f"ユーザー: **{st.session_state.current_user}**")
     st.divider()
     
-    # アカウント設定（折りたたみメニュー）
     with st.expander("⚙️ アカウント設定"):
-        # ユーザー名の変更
         st.write("**ユーザー名の変更**")
         new_username = st.text_input("新しいユーザー名", placeholder="新しい名前を入力", label_visibility="collapsed")
         if st.button("変更を保存", use_container_width=True):
@@ -277,15 +274,11 @@ with st.sidebar:
                     st.error("既に使われています")
                 else:
                     old_username = st.session_state.current_user
-                    # データの移行
                     users[new_username] = users.pop(old_username)
-                    
-                    # 他のユーザーの「いいね」リストの中にある古い名前を更新
                     for u_data in users.values():
                         if "likes" in u_data and old_username in u_data["likes"]:
                             u_data["likes"].remove(old_username)
                             u_data["likes"].append(new_username)
-                            
                     save_users(users)
                     st.session_state.current_user = new_username
                     cookie_manager.set("current_user", new_username, max_age=2592000)
@@ -294,38 +287,31 @@ with st.sidebar:
                     st.rerun()
         
         st.divider()
-        
-        # アカウントの削除
         st.write("**アカウントの削除**")
         st.warning("⚠️ 一度削除すると復旧できません")
         if st.button("🗑️ 完全に削除する", type="primary", use_container_width=True):
             users = load_users()
             user_to_del = st.session_state.current_user
             if user_to_del in users:
-                # ユーザーデータの削除
                 del users[user_to_del]
-                
-                # 他のユーザーの「いいね」リストから削除
                 for u_data in users.values():
                     if "likes" in u_data and user_to_del in u_data["likes"]:
                         u_data["likes"].remove(user_to_del)
-                        
                 save_users(users)
             
-            # ログアウト処理
             cookie_manager.delete("current_user")
             st.session_state.logged_in = False
             st.session_state.current_user = None
-            st.session_state.force_logout = True
+            st.session_state.manual_logout = True
             time.sleep(0.5)
             st.rerun()
     
     st.divider()
     if st.button("🚪 ログアウト", use_container_width=True):
-        cookie_manager.delete("current_user")
+        cookie_manager.delete("current_user") # クッキーを削除
         st.session_state.logged_in = False
         st.session_state.current_user = None
-        st.session_state.force_logout = True # 👈 クッキーのラグを防ぐための強制フラグ
+        st.session_state.manual_logout = True # 自動ログインをブロックする強力なフラグ
         time.sleep(0.5)
         st.rerun()
 
@@ -379,10 +365,15 @@ def display_links(course):
         if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
             st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
 
+# ★ 画像としてダウンロードできるようにするため、時間割全体をID付きの枠で囲む
 def draw_confirmed_timetable(registered_data, semester):
     days = ["月", "火", "水", "木", "金"]
     
-    html_str = '<table class="custom-timetable">'
+    # ここが撮影エリア (背景を白で固定し、ロゴを表記)
+    html_str = '<div id="timetable-capture-area" style="background-color: #ffffff; padding: 15px; border-radius: 12px;">'
+    html_str += f'<div style="text-align: center; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 16px;">🥐 C-krat Timetable ({semester})</div>'
+    
+    html_str += '<table class="custom-timetable">'
     html_str += '<tr><th class="period-col"></th>'
     for d in days:
         html_str += f'<th>{d}</th>'
@@ -405,7 +396,45 @@ def draw_confirmed_timetable(registered_data, semester):
         html_str += '</tr>'
     
     html_str += '</table>'
+    html_str += '</div>'
     st.markdown(html_str, unsafe_allow_html=True)
+
+# ★ 時間割を画像としてダウンロードするボタン（JavaScript）
+def render_image_download_button():
+    components.html(
+        """
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <div style="text-align: center; padding: 5px;">
+            <button onclick="takeScreenshot()" style="
+                background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+                color: #fff; font-weight: bold; border: none; padding: 10px 24px;
+                border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer;
+                font-size: 14px; transition: 0.2s;
+            ">📸 時間割を画像として保存（シェア用）</button>
+        </div>
+        <script>
+        function takeScreenshot() {
+            const doc = window.parent.document;
+            const target = doc.getElementById('timetable-capture-area');
+            if (target) {
+                html2canvas(target, {
+                    scale: 3, // 3倍で綺麗に出力
+                    backgroundColor: '#ffffff',
+                    useCORS: true
+                }).then(canvas => {
+                    let link = doc.createElement('a');
+                    link.download = 'Ckrat_Timetable.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            } else {
+                alert("時間割データの取得に失敗しました。");
+            }
+        }
+        </script>
+        """,
+        height=60
+    )
 
 
 # ==========================================
@@ -449,6 +478,8 @@ if st.session_state.current_page == "tt":
 
     if view_mode == "👀":
         draw_confirmed_timetable(st.session_state.registered, semester)
+        # ★ ここにダウンロードボタンを表示
+        render_image_download_button()
     else:
         if st.session_state.active_slot:
             d = st.session_state.active_slot['day']
