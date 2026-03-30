@@ -6,14 +6,13 @@ import json
 import hashlib
 import os
 import time
-import datetime
 import html
 import extra_streamlit_components as stx
 
 # ==========================================
-# 1. ページ設定とスマホ向けCSS (情報密度MAX版)
+# 1. ページ設定とスマホ向けCSS
 # ==========================================
-st.set_page_config(page_title="C-krat", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
 components.html(
     """
@@ -66,7 +65,6 @@ st.markdown("""
     }
     @media (prefers-color-scheme: dark) { .tt-header { color: #ccc; } }
 
-    /* 純粋なHTMLテーブルを用いた美しく高密度な時間割 */
     .custom-timetable {
         width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 5px;
     }
@@ -103,13 +101,9 @@ st.markdown("""
         .course-cell { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 2px 4px rgba(118, 75, 162, 0.3); }
     }
 
-    /* =========================================
-       ★ スマホ画面への完全フィット（はみ出し防止）
-       ========================================= */
     @media screen and (max-width: 768px) {
         .block-container { padding-left: 0.2rem !important; padding-right: 0.2rem !important; }
         
-        /* 編集モードのボタン最適化 */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
             flex-direction: row !important; flex-wrap: nowrap !important; gap: 2px !important; width: 100% !important;
         }
@@ -124,7 +118,6 @@ st.markdown("""
             border-radius: 8px !important; letter-spacing: -0.2px !important;
         }
         
-        /* ★ HTMLテーブル（確定表示）をスマホにピタッと収める */
         .custom-timetable th { font-size: 10px; padding: 2px 0; }
         .custom-timetable td { height: 60px; padding: 1px; }
         .period-col { width: 12px; font-size: 10px !important; padding-right: 2px !important; }
@@ -137,7 +130,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. データベース（JSON）とクッキー管理
+# 2. 状態管理（Session State）初期化
+# ==========================================
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'current_user' not in st.session_state:
+    st.session_state.current_user = None
+if 'registered' not in st.session_state:
+    st.session_state.registered = {"春学期": {}, "秋学期": {}}
+if 'bookmarks' not in st.session_state:
+    st.session_state.bookmarks = []
+if 'active_slot' not in st.session_state:
+    st.session_state.active_slot = None
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = "tt"
+
+# ★ クッキー操作用のフラグ
+if 'pending_logout' not in st.session_state:
+    st.session_state.pending_logout = False
+if 'pending_login_set' not in st.session_state:
+    st.session_state.pending_login_set = None
+if 'pending_rename_set' not in st.session_state:
+    st.session_state.pending_rename_set = None
+if 'manual_logout' not in st.session_state:
+    st.session_state.manual_logout = False
+
+# ==========================================
+# 3. データベース（JSON）とクッキー管理
 # ==========================================
 USER_FILE = 'users_data.json'
 
@@ -159,18 +178,35 @@ def hash_pass(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def save_and_rerun():
-    if st.session_state.get('current_user'):
+    if st.session_state.current_user:
         users = load_users()
         u_name = st.session_state.current_user
-        users[u_name]['registered'] = st.session_state.registered
-        users[u_name]['bookmarks'] = st.session_state.bookmarks
-        save_users(users)
+        if u_name in users:
+            users[u_name]['registered'] = st.session_state.registered
+            users[u_name]['bookmarks'] = st.session_state.bookmarks
+            save_users(users)
     st.rerun()
 
+# ------------------------------------------
+# ★ クッキーの確実な処理（エラー対策の中核）
+# ------------------------------------------
 cookie_manager = stx.CookieManager()
 
+if st.session_state.pending_logout:
+    cookie_manager.delete("current_user", key="logout_del")
+    st.session_state.pending_logout = False
+    st.session_state.manual_logout = True
+
+if st.session_state.pending_login_set:
+    cookie_manager.set("current_user", st.session_state.pending_login_set, max_age=2592000, key="login_set")
+    st.session_state.pending_login_set = None
+
+if st.session_state.pending_rename_set:
+    cookie_manager.set("current_user", st.session_state.pending_rename_set, max_age=2592000, key="rename_set")
+    st.session_state.pending_rename_set = None
+
 # ==========================================
-# 3. データの準備
+# 4. データの準備
 # ==========================================
 @st.cache_data
 def load_data():
@@ -193,28 +229,13 @@ def load_data():
 df = load_data()
 
 # ==========================================
-# 4. 状態管理（Session State）
-# ==========================================
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'current_user' not in st.session_state:
-    st.session_state.current_user = None
-
-if 'registered' not in st.session_state:
-    st.session_state.registered = {"春学期": {}, "秋学期": {}}
-if 'bookmarks' not in st.session_state:
-    st.session_state.bookmarks = []
-if 'active_slot' not in st.session_state:
-    st.session_state.active_slot = None
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "tt"
-
-# ==========================================
-# 5. アカウント画面
+# 5. アカウント画面（ログイン・登録）
 # ==========================================
 if not st.session_state.logged_in:
     cached_user = cookie_manager.get(cookie="current_user")
-    if cached_user and not st.session_state.get('manual_logout', False):
+    
+    # 手動ログアウト直後でなければ自動ログインを試みる
+    if cached_user and not st.session_state.manual_logout:
         users = load_users()
         if cached_user in users:
             st.session_state.logged_in = True
@@ -223,7 +244,7 @@ if not st.session_state.logged_in:
             st.session_state.bookmarks = users[cached_user]["bookmarks"]
             st.rerun()
 
-    st.title("🥐 C-krat")
+    st.title("🥐 C-krat (シークラット)")
     st.write("中央大学 商学部向け 時間割＆シラバス検索ツール")
     st.write("アカウントにログインまたは新規登録してください。")
     
@@ -258,15 +279,15 @@ if not st.session_state.logged_in:
                 st.session_state.bookmarks = users[user_input]["bookmarks"]
                 st.session_state.manual_logout = False 
                 
-                cookie_manager.set("current_user", user_input, max_age=2592000)
-                time.sleep(0.5)
+                # クッキーのセットを予約して安全にリロード
+                st.session_state.pending_login_set = user_input
                 st.rerun()
             else:
                 st.error("⚠️ 間違っています")
     st.stop()
 
 # ==========================================
-# 6. サイドバー
+# 6. サイドバー（設定・ログアウト）
 # ==========================================
 with st.sidebar:
     st.subheader("👤 アカウント")
@@ -292,9 +313,9 @@ with st.sidebar:
                             u_data["likes"].append(new_username)
                     save_users(users)
                     st.session_state.current_user = new_username
-                    cookie_manager.set("current_user", new_username, max_age=2592000)
-                    st.success("✅ 変更しました！")
-                    time.sleep(1)
+                    
+                    # クッキーの変更を予約してリロード
+                    st.session_state.pending_rename_set = new_username
                     st.rerun()
         
         st.divider()
@@ -310,20 +331,17 @@ with st.sidebar:
                         u_data["likes"].remove(user_to_del)
                 save_users(users)
             
-            cookie_manager.delete("current_user")
+            # ログアウト処理を予約してリロード
             st.session_state.logged_in = False
             st.session_state.current_user = None
-            st.session_state.manual_logout = True
-            time.sleep(0.5)
+            st.session_state.pending_logout = True
             st.rerun()
     
     st.divider()
     if st.button("🚪 ログアウト", use_container_width=True):
-        cookie_manager.delete("current_user") 
         st.session_state.logged_in = False
         st.session_state.current_user = None
-        st.session_state.manual_logout = True 
-        time.sleep(0.5)
+        st.session_state.pending_logout = True
         st.rerun()
 
 # ==========================================
@@ -376,16 +394,11 @@ def display_links(course):
         if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
             st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
 
-# ★ 修正: html2canvasでの文字潰れを防ぐため、フォントと文字間隔を明示的に指定
 def draw_confirmed_timetable(registered_data, semester):
     days = ["月", "火", "水", "木", "金"]
     
-    # フォントファミリーを細かく指定して崩れを防止
     html_str = '<div id="timetable-capture-area" style="background-color: #ffffff; padding: 15px; border-radius: 12px; font-family: \'Helvetica Neue\', Arial, \'Hiragino Kaku Gothic ProN\', \'Hiragino Sans\', Meiryo, sans-serif;">'
-    
-    # 🥐と文字の間に明確な隙間（margin-right）と、文字同士の隙間（letter-spacing）を設定
     html_str += f'<div style="text-align: center; margin-bottom: 15px; font-weight: bold; color: #333; font-size: 18px; letter-spacing: 1px;"><span style="margin-right: 8px;">🥐</span>C-krat Timetable ({semester})</div>'
-    
     html_str += '<table class="custom-timetable">'
     html_str += '<tr><th class="period-col"></th>'
     for d in days:
@@ -447,7 +460,6 @@ def render_image_download_button():
         """,
         height=60
     )
-
 
 # ==========================================
 # 8. ナビゲーション
@@ -662,7 +674,7 @@ elif st.session_state.current_page == "bk":
         with st.container(border=True):
             t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(b)])
             st.write(f"**{b['授業名']}**")
-            display_code = "手動入力" if b['授業コード'].startswith("MY_") else b['授業コード']
+            display_code = "手予約力" if b['授業コード'].startswith("MY_") else b['授業コード']
             st.caption(f"コード: {display_code} | {b['学期']} | {t_str} | {b['担当教員']}")
             
             c1, c2 = st.columns(2)
