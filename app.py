@@ -223,7 +223,7 @@ if not st.session_state.logged_in:
             st.session_state.bookmarks = users[cached_user]["bookmarks"]
             st.rerun()
 
-    st.title("🥐 C-krat (シークラット)")
+    st.title("🥐 C-krat")
     st.write("中央大学 商学部向け 時間割＆シラバス検索ツール")
     st.write("アカウントにログインまたは新規登録してください。")
     
