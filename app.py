@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import re
 import json
@@ -6,13 +7,26 @@ import hashlib
 import os
 import time
 import datetime
-import html  # セキュリティ（XSS対策）用
+import html
 import extra_streamlit_components as stx
 
 # ==========================================
 # 1. ページ設定とスマホ向けCSS (情報密度MAX版)
 # ==========================================
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
+
+# スマホでもPC版と同じように全体を表示し、手動で拡大・縮小(ズーム)できるようにする裏技
+components.html(
+    """
+    <script>
+    const meta = window.parent.document.querySelector('meta[name="viewport"]');
+    if (meta) {
+        meta.setAttribute('content', 'width=1024, user-scalable=yes');
+    }
+    </script>
+    """,
+    height=0
+)
 
 st.markdown("""
 <style>
@@ -25,7 +39,6 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* 編集モード用のボタン調整 */
     div.stButton > button {
         border-radius: 10px !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
@@ -54,9 +67,7 @@ st.markdown("""
     }
     @media (prefers-color-scheme: dark) { .tt-header { color: #ccc; } }
 
-    /* =========================================
-       ★ 新設: 純粋なHTMLテーブルを用いた美しく高密度な時間割
-       ========================================= */
+    /* 純粋なHTMLテーブルを用いた美しく高密度な時間割 */
     .custom-timetable {
         width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px;
     }
@@ -93,9 +104,6 @@ st.markdown("""
         .course-cell { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 2px 4px rgba(118, 75, 162, 0.3); }
     }
 
-    /* =========================================
-       スマホでの編集モード用グリッド最適化
-       ========================================= */
     @media screen and (max-width: 768px) {
         .block-container { padding-left: 0.2rem !important; padding-right: 0.2rem !important; }
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
@@ -107,7 +115,6 @@ st.markdown("""
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child {
             flex: 0.35 1 0% !important;
         }
-        /* 編集ボタンを縦長にして文字を入りきらせる */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
             font-size: 9px !important; padding: 2px !important; min-height: 75px !important;
             border-radius: 8px !important; letter-spacing: -0.2px !important;
@@ -191,11 +198,12 @@ if 'current_page' not in st.session_state:
     st.session_state.current_page = "tt"
 
 # ==========================================
-# 5. アカウント画面（クッキーによる自動ログイン）
+# 5. アカウント画面
 # ==========================================
 if not st.session_state.logged_in:
+    # クッキーの読み込み（強制ログアウトフラグが立っていない場合のみ自動ログイン）
     cached_user = cookie_manager.get(cookie="current_user")
-    if cached_user:
+    if cached_user and not st.session_state.get('force_logout', False):
         users = load_users()
         if cached_user in users:
             st.session_state.logged_in = True
@@ -203,6 +211,9 @@ if not st.session_state.logged_in:
             st.session_state.registered = users[cached_user]["registered"]
             st.session_state.bookmarks = users[cached_user]["bookmarks"]
             st.rerun()
+    elif st.session_state.get('force_logout', False):
+        # 1度ログアウト処理をスルーしたらフラグをリセット
+        st.session_state.force_logout = False
 
     st.title("📚 時間割概論")
     st.write("アカウントにログインまたは新規登録してください。")
@@ -245,23 +256,76 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==========================================
-# 6. サイドバー
+# 6. サイドバー（アカウント設定追加）
 # ==========================================
 with st.sidebar:
     st.subheader("👤 アカウント")
     st.write(f"ユーザー: **{st.session_state.current_user}**")
     st.divider()
     
-    st.subheader("📖 ガチの授業評価を見る")
-    st.write("みんキャンより質が高い、独自集計の「逆通信簿」データベースはこちら。")
-    st.link_button("📊 逆通信簿を見る (note版)", "https://note.com/", type="primary", use_container_width=True)
-    st.caption("※100円で閲覧パスワードを公開しています")
+    # アカウント設定（折りたたみメニュー）
+    with st.expander("⚙️ アカウント設定"):
+        # ユーザー名の変更
+        st.write("**ユーザー名の変更**")
+        new_username = st.text_input("新しいユーザー名", placeholder="新しい名前を入力", label_visibility="collapsed")
+        if st.button("変更を保存", use_container_width=True):
+            if not new_username:
+                st.error("入力してください")
+            else:
+                users = load_users()
+                if new_username in users:
+                    st.error("既に使われています")
+                else:
+                    old_username = st.session_state.current_user
+                    # データの移行
+                    users[new_username] = users.pop(old_username)
+                    
+                    # 他のユーザーの「いいね」リストの中にある古い名前を更新
+                    for u_data in users.values():
+                        if "likes" in u_data and old_username in u_data["likes"]:
+                            u_data["likes"].remove(old_username)
+                            u_data["likes"].append(new_username)
+                            
+                    save_users(users)
+                    st.session_state.current_user = new_username
+                    cookie_manager.set("current_user", new_username, max_age=2592000)
+                    st.success("✅ 変更しました！")
+                    time.sleep(1)
+                    st.rerun()
+        
+        st.divider()
+        
+        # アカウントの削除
+        st.write("**アカウントの削除**")
+        st.warning("⚠️ 一度削除すると復旧できません")
+        if st.button("🗑️ 完全に削除する", type="primary", use_container_width=True):
+            users = load_users()
+            user_to_del = st.session_state.current_user
+            if user_to_del in users:
+                # ユーザーデータの削除
+                del users[user_to_del]
+                
+                # 他のユーザーの「いいね」リストから削除
+                for u_data in users.values():
+                    if "likes" in u_data and user_to_del in u_data["likes"]:
+                        u_data["likes"].remove(user_to_del)
+                        
+                save_users(users)
+            
+            # ログアウト処理
+            cookie_manager.delete("current_user")
+            st.session_state.logged_in = False
+            st.session_state.current_user = None
+            st.session_state.force_logout = True
+            time.sleep(0.5)
+            st.rerun()
     
     st.divider()
     if st.button("🚪 ログアウト", use_container_width=True):
         cookie_manager.delete("current_user")
         st.session_state.logged_in = False
         st.session_state.current_user = None
+        st.session_state.force_logout = True # 👈 クッキーのラグを防ぐための強制フラグ
         time.sleep(0.5)
         st.rerun()
 
@@ -315,7 +379,6 @@ def display_links(course):
         if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
             st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
 
-# ★ 大改修: 確定表示用の純粋なHTML生成関数 (圧倒的な情報量と美しさ)
 def draw_confirmed_timetable(registered_data, semester):
     days = ["月", "火", "水", "木", "金"]
     
@@ -330,7 +393,6 @@ def draw_confirmed_timetable(registered_data, semester):
         for d in days:
             course = next((c for c in registered_data.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
             if course:
-                # 授業名19文字、教員名(苗字のみ)を取得し、XSS攻撃を防ぐためエスケープ処理
                 raw_name = course['授業名'][:19]
                 safe_name = html.escape(raw_name)
                 
@@ -615,5 +677,4 @@ elif st.session_state.current_page == "public":
                     st.rerun()
 
             st.write(f"👤 **{selected_user}** さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
-            # public画面でもHTML版の美しいテーブルが描画されます！
             draw_confirmed_timetable(target_data['registered'], p_sem)
