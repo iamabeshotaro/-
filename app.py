@@ -13,7 +13,7 @@ import extra_streamlit_components as stx
 # ==========================================
 # 1. ページ設定とスマホ向けCSS (情報密度MAX版)
 # ==========================================
-st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="C-krat", layout="centered", initial_sidebar_state="collapsed")
 
 components.html(
     """
