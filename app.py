@@ -12,7 +12,7 @@ import extra_streamlit_components as stx
 # ==========================================
 # 1. ページ設定とスマホ向けCSS
 # ==========================================
-st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="C-krat", layout="centered", initial_sidebar_state="collapsed")
 
 components.html(
     """
@@ -244,7 +244,7 @@ if not st.session_state.logged_in:
             st.session_state.bookmarks = users[cached_user]["bookmarks"]
             st.rerun()
 
-    st.title("🥐 C-krat (シークラット)")
+    st.title("🥐 C-krat")
     st.write("中央大学 商学部向け 時間割＆シラバス検索ツール")
     st.write("アカウントにログインまたは新規登録してください。")
     
