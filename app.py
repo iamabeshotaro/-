@@ -15,7 +15,6 @@ import extra_streamlit_components as stx
 # ==========================================
 st.set_page_config(page_title="時間割概論", layout="centered", initial_sidebar_state="collapsed")
 
-# スマホでもPC版と同じように全体を表示し、手動で拡大・縮小(ズーム)できるようにする裏技
 components.html(
     """
     <script>
@@ -104,8 +103,13 @@ st.markdown("""
         .course-cell { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 2px 4px rgba(118, 75, 162, 0.3); }
     }
 
+    /* =========================================
+       ★ スマホ画面への完全フィット（はみ出し防止）
+       ========================================= */
     @media screen and (max-width: 768px) {
         .block-container { padding-left: 0.2rem !important; padding-right: 0.2rem !important; }
+        
+        /* 編集モードのボタン最適化 */
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
             flex-direction: row !important; flex-wrap: nowrap !important; gap: 2px !important; width: 100% !important;
         }
@@ -119,6 +123,14 @@ st.markdown("""
             font-size: 9px !important; padding: 2px !important; min-height: 75px !important;
             border-radius: 8px !important; letter-spacing: -0.2px !important;
         }
+        
+        /* ★ HTMLテーブル（確定表示）をスマホにピタッと収める */
+        .custom-timetable th { font-size: 10px; padding: 2px 0; }
+        .custom-timetable td { height: 60px; padding: 1px; }
+        .period-col { width: 12px; font-size: 10px !important; padding-right: 2px !important; }
+        .course-cell { border-radius: 6px; padding: 2px; }
+        .course-name { font-size: 8px; line-height: 1.1; margin-bottom: 1px; }
+        .course-teacher { font-size: 6.5px; }
         .tt-header { font-size: 11px !important; }
     }
 </style>
@@ -201,7 +213,6 @@ if 'current_page' not in st.session_state:
 # 5. アカウント画面
 # ==========================================
 if not st.session_state.logged_in:
-    # ⚠️ 修正：手動ログアウト直後はクッキーを無視して自動ログインをブロックする
     cached_user = cookie_manager.get(cookie="current_user")
     if cached_user and not st.session_state.get('manual_logout', False):
         users = load_users()
@@ -245,7 +256,7 @@ if not st.session_state.logged_in:
                 st.session_state.current_user = user_input
                 st.session_state.registered = users[user_input]["registered"]
                 st.session_state.bookmarks = users[user_input]["bookmarks"]
-                st.session_state.manual_logout = False # 手動ログアウトフラグを解除
+                st.session_state.manual_logout = False 
                 
                 cookie_manager.set("current_user", user_input, max_age=2592000)
                 time.sleep(0.5)
@@ -308,10 +319,10 @@ with st.sidebar:
     
     st.divider()
     if st.button("🚪 ログアウト", use_container_width=True):
-        cookie_manager.delete("current_user") # クッキーを削除
+        cookie_manager.delete("current_user") 
         st.session_state.logged_in = False
         st.session_state.current_user = None
-        st.session_state.manual_logout = True # 自動ログインをブロックする強力なフラグ
+        st.session_state.manual_logout = True 
         time.sleep(0.5)
         st.rerun()
 
@@ -365,13 +376,15 @@ def display_links(course):
         if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
             st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
 
-# ★ 画像としてダウンロードできるようにするため、時間割全体をID付きの枠で囲む
+# ★ 修正: html2canvasでの文字潰れを防ぐため、フォントと文字間隔を明示的に指定
 def draw_confirmed_timetable(registered_data, semester):
     days = ["月", "火", "水", "木", "金"]
     
-    # ここが撮影エリア (背景を白で固定し、ロゴを表記)
-    html_str = '<div id="timetable-capture-area" style="background-color: #ffffff; padding: 15px; border-radius: 12px;">'
-    html_str += f'<div style="text-align: center; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 16px;">🥐 C-krat Timetable ({semester})</div>'
+    # フォントファミリーを細かく指定して崩れを防止
+    html_str = '<div id="timetable-capture-area" style="background-color: #ffffff; padding: 15px; border-radius: 12px; font-family: \'Helvetica Neue\', Arial, \'Hiragino Kaku Gothic ProN\', \'Hiragino Sans\', Meiryo, sans-serif;">'
+    
+    # 🥐と文字の間に明確な隙間（margin-right）と、文字同士の隙間（letter-spacing）を設定
+    html_str += f'<div style="text-align: center; margin-bottom: 15px; font-weight: bold; color: #333; font-size: 18px; letter-spacing: 1px;"><span style="margin-right: 8px;">🥐</span>C-krat Timetable ({semester})</div>'
     
     html_str += '<table class="custom-timetable">'
     html_str += '<tr><th class="period-col"></th>'
@@ -399,7 +412,6 @@ def draw_confirmed_timetable(registered_data, semester):
     html_str += '</div>'
     st.markdown(html_str, unsafe_allow_html=True)
 
-# ★ 時間割を画像としてダウンロードするボタン（JavaScript）
 def render_image_download_button():
     components.html(
         """
@@ -418,7 +430,7 @@ def render_image_download_button():
             const target = doc.getElementById('timetable-capture-area');
             if (target) {
                 html2canvas(target, {
-                    scale: 3, // 3倍で綺麗に出力
+                    scale: 3, 
                     backgroundColor: '#ffffff',
                     useCORS: true
                 }).then(canvas => {
@@ -478,7 +490,6 @@ if st.session_state.current_page == "tt":
 
     if view_mode == "👀":
         draw_confirmed_timetable(st.session_state.registered, semester)
-        # ★ ここにダウンロードボタンを表示
         render_image_download_button()
     else:
         if st.session_state.active_slot:
