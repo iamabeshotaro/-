@@ -251,33 +251,18 @@ def load_users():
         return {}
 
 def save_users(users):
-
     try:
-
         client = get_gspread_client()
-
         sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
-
-        
-
         # スプレッドシートに書き込む形式にデータを整える
-
         cell_data = [["username", "data"]] # 1行目のヘッダー
-
         for uname, udata in users.items():
-
             cell_data.append([uname, json.dumps(udata, ensure_ascii=False)])
-
             
-
         # 一旦シートをクリアして、新しいデータで上書きする
-
         sheet.clear()
-
         sheet.update('A1', cell_data)
-
     except Exception as e:
-
         st.error(f"データベースの保存に失敗しました: {e}")
 
 def hash_pass(password):
