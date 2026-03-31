@@ -551,15 +551,29 @@ st.divider()
 # ------------------------------------------
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
     
-    # ★ session_state に tt_sem（時間割用学期）が存在しなければ作成
-    if 'tt_sem' not in st.session_state: 
-        st.session_state.tt_sem = "春学期"
+    # ==========================================
+    # ★ 1. ページを移動しても絶対に消えない「保存用」の変数を用意
+    # ==========================================
+    if 'saved_tt_sem' not in st.session_state: 
+        st.session_state.saved_tt_sem = "春学期"
+
+    # ★ 2. セレクトボックスが操作された瞬間に、保存用の変数を上書きする関数
+    def update_tt_sem():
+        st.session_state.saved_tt_sem = st.session_state.tt_sem_widget
         
     if st.session_state.active_slot is None:
         col_h1, col_h2 = st.columns([3, 2])
         with col_h1:
-            # ★ key="tt_sem" を指定することで、選んだ瞬間に保持＆リロードされる
-            semester = st.selectbox("学期", ["春学期", "秋学期"], key="tt_sem", label_visibility="collapsed")
+            # ★ 3. indexを使って前回選んだものを復元し、on_changeで保存関数を呼び出す
+            current_idx = 0 if st.session_state.saved_tt_sem == "春学期" else 1
+            semester = st.selectbox(
+                "学期", 
+                ["春学期", "秋学期"], 
+                index=current_idx,
+                key="tt_sem_widget", 
+                on_change=update_tt_sem,
+                label_visibility="collapsed"
+            )
         with col_h2: 
             st.write(f"✅ **{get_total_credits(st.session_state.registered[semester]):.1f} 単位**")
 
@@ -589,19 +603,21 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
                             st.rerun()
 
-        render_image_download_button(semester, st.session_state.registered)
+        # 画像ダウンロードボタンがあれば表示
+        if "render_image_download_button" in globals():
+            render_image_download_button(semester, st.session_state.registered)
 
     else:
         d = st.session_state.active_slot['day']
         p = st.session_state.active_slot['period']
         course = st.session_state.active_slot['course']
-        # ★ ここも保持されている tt_sem を使う
-        semester = st.session_state.tt_sem
+        
+        # ★ 4. コマの編集画面に入った時も「保存用変数」を参照する
+        semester = st.session_state.saved_tt_sem
 
         col_title, col_close = st.columns([4, 1])
         col_title.subheader(f"⚙️ {d}曜{p}限")
         
-        # ★ 戻るボタンのロジック修正（active_slotを解除するだけ）
         if col_close.button("✖ 戻る", type="primary"):
             st.session_state.active_slot = None
             st.rerun()
@@ -609,7 +625,7 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
         if course:
             st.success(f"✅ 現在登録中: **{course['授業名']}**")
             st.write(f"担当: {course['担当教員']} | 単位: {course['単位数']}")
-            display_links(course)
+            if "display_links" in globals(): display_links(course)
             st.divider()
             st.write("このコマの授業を変更・削除する場合は下から選んでください。")
 
@@ -618,7 +634,7 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
             if semester.replace("学期","") in row['学期'] and (d, str(p)) in get_slot_pairs(row): mask.append(True)
             else: mask.append(False)
                 
-        slot_courses = df[mask].sort_values('優先度')
+        slot_courses = df[mask].sort_values('優先度') if '優先度' in df.columns else df[mask]
         if len(slot_courses) == 0: st.info("この時間に開講されているシラバス掲載の授業はありません。")
             
         for _, row in slot_courses.head(30).iterrows():
@@ -626,22 +642,25 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                 st.write(f"**{row['授業名']}**")
                 st.caption(f"コード: {row['授業コード']} | 担当: {row['担当教員']} | 単位: {row['単位数']}")
                 
-                # ここは登録ユーザーしか見ないので制限なし
                 b1, b2 = st.columns([1, 1])
                 is_reg = row['授業コード'] in st.session_state.registered[semester]
                 with b1:
                     if st.button("解除" if is_reg else "✅ 本登録", key=f"reg_{row['授業コード']}", use_container_width=True):
-                        toggle_register(semester, row.to_dict())
+                        if "toggle_register" in globals(): toggle_register(semester, row.to_dict())
                         st.session_state.active_slot = None 
-                        save_and_rerun()
-                is_bk = row['授業コード'] in [bk['授業コード'] for bk in st.session_state.bookmarks]
+                        if "save_and_rerun" in globals(): save_and_rerun()
+                
+                bk_list = [bk['授業コード'] for bk in st.session_state.bookmarks] if isinstance(st.session_state.bookmarks, list) else []
+                is_bk = row['授業コード'] in bk_list
                 with b2:
                     if st.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_{row['授業コード']}", use_container_width=True):
-                        if not is_bk: st.session_state.bookmarks.append(row.to_dict())
-                        else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
-                        save_and_rerun()
+                        if not is_bk: 
+                            st.session_state.bookmarks.append(row.to_dict())
+                        else: 
+                            st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
+                        if "save_and_rerun" in globals(): save_and_rerun()
                         
-                display_links(row.to_dict())
+                if "display_links" in globals(): display_links(row.to_dict())
 
         st.divider()
         with st.expander("＋ オリジナルの授業を作成する"):
@@ -652,12 +671,13 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                 if st.form_submit_button("✅ このコマに登録"):
                     if not c_name.strip(): st.error("入力してください")
                     else:
-                        toggle_register(semester, {
-                            "授業コード": f"MY_{int(time.time())}", "授業名": c_name, "担当教員": c_teacher if c_teacher else "不明",
-                            "単位数": f"{c_credits}単位", "曜日": d, "時限": str(p), "学期": semester, "詳細URL": "不明", "みんキャン検索LINK": "不明", "優先度": 99
-                        })
+                        if "toggle_register" in globals():
+                            toggle_register(semester, {
+                                "授業コード": f"MY_{int(time.time())}", "授業名": c_name, "担当教員": c_teacher if c_teacher else "不明",
+                                "単位数": f"{c_credits}単位", "曜日": d, "時限": str(p), "学期": semester, "詳細URL": "不明", "みんキャン検索LINK": "不明", "優先度": 99
+                            })
                         st.session_state.active_slot = None
-                        save_and_rerun()
+                        if "save_and_rerun" in globals(): save_and_rerun()
 # ------------------------------------------
 # 画面2: 検索画面 (ゲスト制限あり)
 # ------------------------------------------
