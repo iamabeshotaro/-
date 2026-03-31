@@ -251,26 +251,33 @@ def load_users():
         return {}
 
 def save_users(users):
+
     try:
+
         client = get_gspread_client()
+
         sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
+
         
-        # 1. 現在のシートの内容を全部取得
-        records = sheet.get_all_records()
-        # カラム名のリスト（A列, B列のヘッダー）
-        header = ["username", "data"]
-        
-        # 2. 全ユーザーをループして、1行ずつ更新または追加
-        # (ユーザー数が増えるまではこの方式が一番安全)
-        all_rows = [header]
+
+        # スプレッドシートに書き込む形式にデータを整える
+
+        cell_data = [["username", "data"]] # 1行目のヘッダー
+
         for uname, udata in users.items():
-            all_rows.append([uname, json.dumps(udata, ensure_ascii=False)])
+
+            cell_data.append([uname, json.dumps(udata, ensure_ascii=False)])
+
             
-        # 3. データを一括更新 (clearせずに一気に上書き)
-        sheet.update('A1', all_rows)
-        
-        st.toast("✅ データベースを同期しました")
+
+        # 一旦シートをクリアして、新しいデータで上書きする
+
+        sheet.clear()
+
+        sheet.update('A1', cell_data)
+
     except Exception as e:
+
         st.error(f"データベースの保存に失敗しました: {e}")
 
 def hash_pass(password):
