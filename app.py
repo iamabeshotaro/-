@@ -551,46 +551,7 @@ st.divider()
 # ------------------------------------------
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
     
-    # ==========================================
-    # ★ アップデート: 1マスにまとめたボタンを赤くする「確実なCSS魔法」
-    # ==========================================
-    st.markdown("""
-        <style>
-        /* 1. マーカー（目印）のコンテナを画面から完全に消し去る */
-        div[data-testid="element-container"]:has(.bk-marker) {
-            height: 0px !important;
-            margin: 0px !important;
-            padding: 0px !important;
-            overflow: hidden !important;
-        }
-        
-        /* 2. マーカーの「直後」にあるボタンを赤グラデーションにする */
-        div[data-testid="element-container"]:has(.bk-marker) + div[data-testid="element-container"] button {
-            background: linear-gradient(135deg, #ff4b4b 0%, #b30000 100%) !important;
-            color: white !important;
-            border: none !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
-            padding: 2px 0px !important;
-            min-height: 45px !important; 
-            height: 100% !important;
-            width: 100% !important;
-        }
-        
-        div[data-testid="element-container"]:has(.bk-marker) + div[data-testid="element-container"] button:hover {
-            background: linear-gradient(135deg, #ff6666 0%, #cc0000 100%) !important;
-            opacity: 0.9;
-        }
-        
-        /* 3. ボタン内のテキスト設定（極小化 ＆ 複数行の改行を許可） */
-        div[data-testid="element-container"]:has(.bk-marker) + div[data-testid="element-container"] button p,
-        div[data-testid="element-container"]:has(.bk-marker) + div[data-testid="element-container"] button span {
-            font-size: 9px !important;       /* 文字をさらに小さく！ */
-            white-space: pre-wrap !important; /* "\n" での改行を有効にする魔法 */
-            line-height: 1.3 !important;
-            margin: 0 !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    # CSSのハック部分はすべて削除し、クリーンな状態に戻しました！
 
     if 'saved_tt_sem' not in st.session_state: 
         st.session_state.saved_tt_sem = "春学期"
@@ -640,20 +601,10 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                         bk_courses = [c for c in st.session_state.bookmarks if semester.replace("学期","") in c['学期'] and (d, str(p)) in get_slot_pairs(c)]
                         
                         if bk_courses:
-                            # 候補が複数ある場合、リストを作って「\n（改行）」で連結する
-                            # 1つのマスに収めるため、名前は5文字でカット
-                            labels = [f"🔖{c['授業名'][:5]}" for c in bk_courses]
-                            
-                            # 候補が3つ以上ある場合は、見た目重視で「他」と略す
-                            if len(labels) > 3:
-                                labels = labels[:2] + ["🔖他..."]
-                                
+                            # ★ 複数ある場合、スマホ最適化のために「6文字」でカットして改行で繋ぐ
+                            labels = [f"🔖{c['授業名'][:6]}" for c in bk_courses]
                             combined_label = "\n".join(labels)
                             
-                            # 【超重要】ボタンの直前に「透明な目印（マーカー）」を置くことで、CSSをこのボタンにだけ当てる
-                            st.markdown('<div class="bk-marker"></div>', unsafe_allow_html=True)
-                            
-                            # 1マスに1つのボタンを配置
                             if st.button(combined_label, key=f"cell_{d}_{p}_bk", use_container_width=True):
                                 st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
                                 st.rerun()
