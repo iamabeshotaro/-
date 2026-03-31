@@ -654,85 +654,77 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                         save_and_rerun()
 
 # ------------------------------------------
-# 画面2: 検索画面
+# 画面2: 検索画面 (ゲスト制限あり)
 # ------------------------------------------
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
+    query = st.text_input("キーワード (授業名・教員・コード)")
+    s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"])
+    col_d, col_p = st.columns(2)
+    s_day = col_d.selectbox("曜日", ["すべて", "月", "火", "水", "木", "金"])
+    s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"])
 
+    res = df.copy()
+    # 空欄(NaN)エラー防止のために na=False を追加しています
+    if s_sem != "すべて": res = res[res['学期'].str.contains(s_sem, na=False)]
+    if s_day != "すべて": res = res[res['曜日'].str.contains(s_day, na=False)]
+    if s_per != "すべて": res = res[res['時限'].astype(str).str.contains(s_per, na=False)]
+    
     # ==========================================
-    # 1. 絞り込み条件（学期・曜日・時限）の選択
+    # ★ ここから検索エンジンのアップデート部分 ★
     # ==========================================
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        selected_semester = st.selectbox("学期", ["春学期", "秋学期"])
-    with col2:
-        selected_day = st.selectbox("曜日", ["全曜日", "月", "火", "水", "木", "金", "土"])
-    with col3:
-        selected_period = st.selectbox("時限", ["全時限", "1", "2", "3", "4", "5", "6"])
-
-    # キーワード入力
-    query = st.text_input("キーワード (授業名・教員・コード)", placeholder="例: 経済　山田 (スペース区切り可)")
-
-    # ==========================================
-    # 2. フィルタリング処理（プルダウン ＋ 曖昧検索）
-    # ==========================================
-    filtered_df = df.copy()
-
-    # ① 学期で絞り込み
-    filtered_df = filtered_df[filtered_df['学期'].str.contains(selected_semester, na=False)]
-
-    # ② 曜日で絞り込み
-    if selected_day != "全曜日":
-        filtered_df = filtered_df[filtered_df['曜日'] == selected_day]
-
-    # ③ 時限で絞り込み
-    if selected_period != "全時限":
-        # 時限が文字列（"1", "2"など）でも数値でもヒットするように処理
-        filtered_df = filtered_df[filtered_df['時限'].astype(str).str.contains(selected_period, na=False)]
-
-    # ④ キーワード検索（AND検索 ＆ 語尾カット）
     if query:
+        # 全角スペースを半角に変換し、空白で区切って複数キーワードに対応（AND検索）
         query_normalized = query.replace("　", " ").strip()
-        keywords = query_normalized.split() 
-
+        keywords = query_normalized.split()
+        
         for kw in keywords:
-            # 語尾カット処理
+            # シラバス特化：語尾が「学」「論」などの場合は削ってヒット率を上げる
             if len(kw) >= 3 and kw.endswith(("学", "論", "I", "II", "Ⅰ", "Ⅱ")):
                 search_kw = kw[:-1]
             else:
                 search_kw = kw
                 
+            # 大文字小文字を区別せず、授業名・教員・コードのどれかに含まれていればOK
             mask = (
-                filtered_df['科目名'].fillna('').astype(str).str.contains(search_kw, case=False) |
-                filtered_df['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False) |
-                filtered_df['時間割コード'].fillna('').astype(str).str.contains(search_kw, case=False)
+                res['授業名'].fillna('').astype(str).str.contains(search_kw, case=False) | 
+                res['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False) | 
+                res['授業コード'].fillna('').astype(str).str.contains(search_kw, case=False)
             )
-            filtered_df = filtered_df[mask]
+            # 条件を満たしたものだけを次のループ（次のキーワード）に渡す
+            res = res[mask]
+    # ==========================================
+    # ★ アップデート部分ここまで ★
+    # ==========================================
 
-    # ==========================================
-    # 3. 検索結果の表示
-    # ==========================================
-    st.write(f"**{len(filtered_df)} 件の授業がヒットしました**")
+    res = res.sort_values('優先度')
+    st.write(f"結果: **{len(res)}件** (50件まで)")
     
-    if not filtered_df.empty:
-        for index, row in filtered_df.iterrows():
-            with st.expander(f"📖 {row.get('科目名', '不明')} ({row.get('担当教員', '不明')})"):
-                st.write(f"**コード:** {row.get('時間割コード', '不明')} | **時間:** {row.get('曜日', '不明')}{row.get('時限', '不明')}")
-                
-                display_links(row)
-                
-                if not st.session_state.is_guest:
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        if st.button("✅ 本登録", key=f"reg_{index}"):
-                            # ※ここにShoが使っている登録処理（関数など）を入れてね
-                            register_course(row, "本登録") 
-                    with col_b:
-                        if st.button("⭐ 候補へ", key=f"fav_{index}"):
-                            # ※ここにShoが使っている候補追加処理を入れてね
-                            register_course(row, "候補")
-    else:
-        st.warning("条件に合う授業が見つかりませんでした。条件を緩めてみてください。")
+    for _, row in res.head(50).iterrows():
+        with st.container(border=True):
+            t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(row)])
+            st.write(f"**{row['授業名']}**")
+            st.caption(f"コード: {row['授業コード']} | {row['学期']} | {t_str} | {row['担当教員']}")
+            
+            # ★ ゲストと登録ユーザーで表示を分ける
+            if st.session_state.is_guest:
+                st.markdown("<p style='font-size: 11px; color: #888; text-align: center; margin-bottom: 5px;'>👆 アカウント登録すると自分の時間割に追加できます</p>", unsafe_allow_html=True)
+                display_links(row.to_dict())
+            else:
+                c1, c2 = st.columns([1, 1])
+                active_sem = "春学期" if "春" in row['学期'] else "秋学期"
+                is_reg = row['授業コード'] in st.session_state.registered[active_sem]
+                with c1:
+                    if st.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}", use_container_width=True):
+                        toggle_register(active_sem, row.to_dict())
+                        save_and_rerun()
+                is_bk = row['授業コード'] in [b['授業コード'] for b in st.session_state.bookmarks]
+                with c2:
+                    if st.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}", use_container_width=True):
+                        if not is_bk: st.session_state.bookmarks.append(row.to_dict())
+                        else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
+                        save_and_rerun()
+                display_links(row.to_dict())
 # ------------------------------------------
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
