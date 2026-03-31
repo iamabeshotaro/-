@@ -43,7 +43,7 @@ st.markdown("""
     div[data-testid="stVerticalBlockBorderWrapper"] > div { gap: 0px !important; }
 
     /* =========================================
-       ★ 魔法のCSS: Streamlitのボタンを完全なHTMLテーブルに変換する
+       ★ 魔法のCSS: Streamlitのボタンを完全な四角い箱（セル）にする
        ========================================= */
     /* 6列のブロックをCSS Gridで強制的にテーブル化 */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
@@ -59,12 +59,12 @@ st.markdown("""
         width: 100% !important;
         flex: none !important;
         padding: 0 !important;
-        border-right: 1px dashed #e0e0e0;
-        border-bottom: 1px dashed #e0e0e0;
-        min-height: 65px; /* セルの高さ */
+        border-right: 1px solid #f0f0f0; /* 薄い実線で区切る */
+        border-bottom: 1px solid #f0f0f0; 
+        min-height: 70px; /* セルの高さを少し確保 */
         display: flex;
         align-items: stretch;
-        justify-content: stretch; /* 中身をいっぱいに広げる */
+        justify-content: stretch;
     }
     
     /* 1列目（時限の数字）の背景色と線 */
@@ -79,7 +79,7 @@ st.markdown("""
     }
 
     /* =========================================
-       ★ セルの中のボタンデザイン（余白ゼロ設定）
+       ★ セルの中のボタンデザイン（余白ゼロ・完全塗りつぶし）
        ========================================= */
     /* Streamlitが勝手に作る透明な箱（ラッパー）を100%に広げる */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) div.stButton {
@@ -96,13 +96,15 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
         width: 100% !important;
         height: 100% !important;
-        min-height: 65px !important;
+        min-height: 70px !important;
         border: none !important;
-        border-radius: 0 !important;
+        border-radius: 0 !important; /* 角丸を消して完全に箱の隅まで塗る */
         background-color: transparent !important;
-        padding: 1px !important; /* 隙間を極限まで減らす */
-        font-size: 8px !important; /* 文字を小さく */
+        padding: 2px !important; 
+        font-size: 10px !important; /* 5文字入る絶妙なサイズ */
         font-weight: 700 !important;
+        letter-spacing: -0.5px !important; /* 文字間を詰める */
+        word-break: break-all !important; /* 枠の端で強制的に折り返す */
         line-height: 1.15 !important;
         white-space: pre-wrap !important;
         margin: 0 !important;
@@ -113,11 +115,11 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] {
         background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important;
         color: #1a365d !important;
-        border-radius: 4px !important; /* セルの中でほんの少しだけ丸みを持たせる */
-        margin: 1px !important; /* 境界線を見せるためのわずかな1pxの隙間 */
-        width: calc(100% - 2px) !important;
-        height: calc(100% - 2px) !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+        /* 余白と影を完全に消し去る */
+        margin: 0 !important; 
+        width: 100% !important;
+        height: 100% !important;
+        box-shadow: none !important; 
     }
 
     /* 空きコマ（＋マーク） */
@@ -126,7 +128,8 @@ st.markdown("""
         font-size: 14px !important;
     }
 
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button:active { transform: scale(0.95) !important; }
+    /* タップ時のへこみアニメーション（少し控えめに） */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button:active { transform: scale(0.97) !important; }
 
     @media (prefers-color-scheme: dark) {
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) { border-top: 1px solid #444; }
@@ -135,6 +138,7 @@ st.markdown("""
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%) !important; color: #fff !important; }
     }
 
+    /* 通常のボタン設定（ナビゲーションなどはそのまま維持） */
     div.stButton > button:not(div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button) {
         border-radius: 10px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
         font-weight: 600 !important; padding: 6px 4px !important; min-height: 44px !important;
@@ -432,8 +436,8 @@ if st.session_state.current_page == "tt":
                 with cols[i+1]:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 教員名を非表示にし、授業名のみを短く表示
-                        label = course['授業名'][:11]
+                        # 教員名を非表示にし、授業名のみを長め（12文字）に取得
+                        label = course['授業名'][:12]
                         
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
