@@ -658,29 +658,50 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
 # ------------------------------------------
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
-    
+
     # ==========================================
-    # 2. 検索ボックスと曖昧検索処理
+    # 1. 絞り込み条件（学期・曜日・時限）の選択
     # ==========================================
-    query = st.text_input("キーワード (授業名・教員・コード)", placeholder="例: 経済　山田 (スペース区切りで複数指定可)")
-    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        selected_semester = st.selectbox("学期", ["春学期", "秋学期"])
+    with col2:
+        selected_day = st.selectbox("曜日", ["全曜日", "月", "火", "水", "木", "金", "土"])
+    with col3:
+        selected_period = st.selectbox("時限", ["全時限", "1", "2", "3", "4", "5", "6"])
+
+    # キーワード入力
+    query = st.text_input("キーワード (授業名・教員・コード)", placeholder="例: 経済　山田 (スペース区切り可)")
+
+    # ==========================================
+    # 2. フィルタリング処理（プルダウン ＋ 曖昧検索）
+    # ==========================================
+    filtered_df = df.copy()
+
+    # ① 学期で絞り込み
+    filtered_df = filtered_df[filtered_df['学期'].str.contains(selected_semester, na=False)]
+
+    # ② 曜日で絞り込み
+    if selected_day != "全曜日":
+        filtered_df = filtered_df[filtered_df['曜日'] == selected_day]
+
+    # ③ 時限で絞り込み
+    if selected_period != "全時限":
+        # 時限が文字列（"1", "2"など）でも数値でもヒットするように処理
+        filtered_df = filtered_df[filtered_df['時限'].astype(str).str.contains(selected_period, na=False)]
+
+    # ④ キーワード検索（AND検索 ＆ 語尾カット）
     if query:
-        # ① 全角スペースを半角に変換し、前後の余白を消してリスト化（AND検索の準備）
         query_normalized = query.replace("　", " ").strip()
         keywords = query_normalized.split() 
 
-        # 検索元のデータフレームをコピー（変数名 df は環境に合わせてください）
-        filtered_df = df.copy() 
-
         for kw in keywords:
-            # ② シラバス特化の語尾カット（「経済学」→「経済」などでヒット率を上げる）
+            # 語尾カット処理
             if len(kw) >= 3 and kw.endswith(("学", "論", "I", "II", "Ⅰ", "Ⅱ")):
                 search_kw = kw[:-1]
             else:
                 search_kw = kw
                 
-            # ③ 大文字小文字を区別せず、複数列をまたいでAND検索
-            # fillna('') を入れることで、空欄(NaN)によるエラーを完全に防ぎます
             mask = (
                 filtered_df['科目名'].fillna('').astype(str).str.contains(search_kw, case=False) |
                 filtered_df['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False) |
@@ -688,32 +709,30 @@ elif st.session_state.current_page == "search":
             )
             filtered_df = filtered_df[mask]
 
-        # ==========================================
-        # 3. 検索結果の表示
-        # ==========================================
-        st.write(f"**{len(filtered_df)} 件の授業が見つかりました**")
-        
-        if not filtered_df.empty:
-            for index, row in filtered_df.iterrows():
-                # アコーディオン（折りたたみ）で各授業を表示
-                with st.expander(f"📖 {row.get('科目名', '不明')} ({row.get('担当教員', '不明')})"):
-                    # 基本情報の表示
-                    st.write(f"**時間割コード:** {row.get('時間割コード', '不明')} | **曜日・時限:** {row.get('曜日', '不明')} {row.get('時限', '不明')}")
-                    
-                    # 各種リンクボタンの表示（既存の関数を呼び出し）
-                    display_links(row)
-                    
-                    # ゲストではない場合のみ、登録ボタンを表示
-                    if not st.session_state.is_guest:
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("✅ 本登録", key=f"reg_{index}"):
-                                register_course(row, "本登録") # ※Shoの既存の登録関数名に合わせてね
-                        with col2:
-                            if st.button("⭐ 候補へ", key=f"fav_{index}"):
-                                register_course(row, "候補") # ※Shoの既存の登録関数名に合わせてね
-        else:
-            st.warning("条件に一致する授業は見つかりませんでした。別のキーワードをお試しください。")
+    # ==========================================
+    # 3. 検索結果の表示
+    # ==========================================
+    st.write(f"**{len(filtered_df)} 件の授業がヒットしました**")
+    
+    if not filtered_df.empty:
+        for index, row in filtered_df.iterrows():
+            with st.expander(f"📖 {row.get('科目名', '不明')} ({row.get('担当教員', '不明')})"):
+                st.write(f"**コード:** {row.get('時間割コード', '不明')} | **時間:** {row.get('曜日', '不明')}{row.get('時限', '不明')}")
+                
+                display_links(row)
+                
+                if not st.session_state.is_guest:
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        if st.button("✅ 本登録", key=f"reg_{index}"):
+                            # ※ここにShoが使っている登録処理（関数など）を入れてね
+                            register_course(row, "本登録") 
+                    with col_b:
+                        if st.button("⭐ 候補へ", key=f"fav_{index}"):
+                            # ※ここにShoが使っている候補追加処理を入れてね
+                            register_course(row, "候補")
+    else:
+        st.warning("条件に合う授業が見つかりませんでした。条件を緩めてみてください。")
 # ------------------------------------------
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
