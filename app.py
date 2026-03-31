@@ -878,14 +878,14 @@ elif st.session_state.current_page == "mypage" and not st.session_state.is_guest
 # 9. フッター（開発者リンク）
 # ==========================================
 # ★ "YOUR_X_ID" の部分をShoの実際のX（Twitter）のIDに書き換えてください
-x_id = "@chuo_krat" 
+x_id = "chuo_krat" 
 x_url = f"https://x.com/chuo_krat"
 
 st.markdown(
     f"""
     <hr style="border: 0; height: 1px; background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0)); margin-top: 50px; margin-bottom: 20px;">
     <div style="text-align: center; color: #666; font-size: 13px; padding-bottom: 30px;">
-        <p style="margin-bottom: 5px;">C-krat - 中央大学 商学部向け時間割アプリ</p>
+        <p style="margin-bottom: 5px;">C-krat - 商学部向け時間割アプリ</p>
         <a href="{x_url}" target="_blank" style="display: inline-flex; align-items: center; justify-content: center; color: #1DA1F2; text-decoration: none; font-weight: bold; background-color: rgba(29, 161, 242, 0.1); padding: 5px 12px; border-radius: 20px; transition: 0.2s;">
             <span style="font-size: 16px; margin-right: 5px;">𝕏</span> @{x_id}
         </a>
