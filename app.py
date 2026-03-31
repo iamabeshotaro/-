@@ -552,21 +552,34 @@ st.divider()
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
     
     # ==========================================
-    # ★ 追加: ブックマークを赤グラデーションにするCSS魔法
+    # ★ アップデート: ブックマークを「赤グラデーション＆極小化＆隙間詰め」にするCSS
     # ==========================================
     st.markdown("""
         <style>
-        /* 名前に「🔖」が含まれるボタンをターゲットにして赤グラデーション化 */
+        /* 🔖が含まれるボタンの「親コンテナ」の余白を詰めて、縦に並んだ時の隙間をなくす */
+        div[data-testid="element-container"]:has(button p:contains("🔖")) {
+            margin-bottom: -12px !important;
+        }
+        /* 名前に「🔖」が含まれるボタンを赤く染め、極小サイズに圧縮する */
         div[data-testid="stButton"] button:has(p:contains("🔖")) {
             background: linear-gradient(135deg, #ff4b4b 0%, #b30000 100%) !important;
             color: white !important;
             border: none !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
-            transition: 0.3s !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            transition: 0.2s !important;
+            padding: 0px 2px !important; /* 内側の余白を極限まで削る */
+            min-height: 22px !important; /* ボタンの高さを低くする */
+            height: auto !important;
         }
         div[data-testid="stButton"] button:has(p:contains("🔖")):hover {
             background: linear-gradient(135deg, #ff6666 0%, #cc0000 100%) !important;
-            transform: translateY(-2px);
+            transform: translateY(-1px);
+        }
+        /* ボタン内のテキスト（授業名）を極小にする */
+        div[data-testid="stButton"] button:has(p:contains("🔖")) p {
+            font-size: 10px !important; /* 文字を小さく */
+            margin: 0 !important;
+            line-height: 1.1 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -609,23 +622,24 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     
                     if course:
-                        # 本登録がある場合は青（またはテーマ色）のボタン
+                        # 本登録がある場合は通常のボタン
                         label = course['授業名'][:11]
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
                             st.rerun()
                     else:
-                        # 2. 本登録がない場合、「ブックマーク（候補）」の授業を探す
-                        # ブックマークのリストから、学期と曜日・時限が一致するものを検索
-                        bk_course = next((c for c in st.session_state.bookmarks if semester.replace("学期","") in c['学期'] and (d, str(p)) in get_slot_pairs(c)), None)
+                        # 2. 本登録がない場合、「ブックマーク（候補）」の授業を【全て】探す
+                        bk_courses = [c for c in st.session_state.bookmarks if semester.replace("学期","") in c['学期'] and (d, str(p)) in get_slot_pairs(c)]
                         
-                        if bk_course:
-                            # ブックマークがある場合は、🔖をつけてCSSで赤く染める
-                            label = f"🔖 {bk_course['授業名'][:9]}"
-                            if st.button(label, key=f"cell_{d}_{p}_bk", use_container_width=True):
-                                # ※開いた時は「未登録」扱いにするため course は None を渡します
-                                st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
-                                st.rerun()
+                        if bk_courses:
+                            # 候補が複数ある場合は、ループで全て表示する
+                            for idx, bk_c in enumerate(bk_courses):
+                                # 複数入ることを想定し、文字数を少し短め（6文字程度）にカット
+                                label = f"🔖{bk_c['授業名'][:6]}"
+                                # keyが重複しないように idx を末尾に付ける
+                                if st.button(label, key=f"cell_{d}_{p}_bk_{idx}", use_container_width=True):
+                                    st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
+                                    st.rerun()
                         else:
                             # 3. どちらもない場合は「＋」ボタン
                             if st.button("＋", key=f"cell_{d}_{p}", type="secondary", use_container_width=True):
