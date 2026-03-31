@@ -604,7 +604,7 @@ elif st.session_state.current_page == "search":
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
 elif st.session_state.current_page == "bk":
-    st.subheader("⭐ 保存した授業 (候補)")
+    st.subheader("⭐ 保存した授業")
     if not st.session_state.bookmarks: st.info("検索画面から⭐を押して保存してください。")
         
     for b in st.session_state.bookmarks:
@@ -615,20 +615,24 @@ elif st.session_state.current_page == "bk":
             st.caption(f"コード: {display_code} | {b['学期']} | {t_str} | {b['担当教員']}")
             
             # ★修正：本登録と削除ボタンを横並びで配置し、文字を短縮
-            c1, c2 = st.columns(2)
+            # 同じく比率指定と with ブロックでボタンを整える
+            c1, c2 = st.columns([1, 1])
             active_sem = "春学期" if "春" in b['学期'] else "秋学期"
             is_reg = b['授業コード'] in st.session_state.registered[active_sem]
             
-            if c1.button("解除" if is_reg else "✅ 本登録", key=f"bk_reg_{b['授業コード']}"):
-                toggle_register(active_sem, b)
-                save_and_rerun()
-                
-            if c2.button("🗑️ 削除", key=f"bk_del_{b['授業コード']}"):
-                st.session_state.bookmarks = [x for x in st.session_state.bookmarks if x['授業コード'] != b['授業コード']]
-                if is_reg: del st.session_state.registered[active_sem][b['授業コード']]
-                save_and_rerun()
-                
-            if not b['授業コード'].startswith("MY_"): display_links(b)
+            with c1:
+                if st.button("解除" if is_reg else "✅ 本登録", key=f"bk_reg_{b['授業コード']}", use_container_width=True):
+                    toggle_register(active_sem, b)
+                    save_and_rerun()
+                    
+            with c2:
+                if st.button("🗑️ 削除", key=f"bk_del_{b['授業コード']}", use_container_width=True):
+                    st.session_state.bookmarks = [x for x in st.session_state.bookmarks if x['授業コード'] != b['授業コード']]
+                    if is_reg: del st.session_state.registered[active_sem][b['授業コード']]
+                    save_and_rerun()
+                    
+            if not b['授業コード'].startswith("MY_"): 
+                display_links(b)
 
 # ------------------------------------------
 # 画面4: みんなの時間割 (公開タイムライン)
