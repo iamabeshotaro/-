@@ -659,18 +659,24 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
     
-    # 検索窓のプレースホルダーから「コード」を削除してスッキリさせました
-    query = st.text_input("キーワード (授業名・教員)")
-    
-    s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"])
-    col_d, col_p = st.columns(2)
-    s_day = col_d.selectbox("曜日", ["すべて", "月", "火", "水", "木", "金"])
-    s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"])
+    # ==========================================
+    # ★ 変更点: 検索条件をメモリ（session_state）に保存する準備
+    # ==========================================
+    # 初めてこの画面を開いた時のデフォルト値を設定
+    if "search_query" not in st.session_state: st.session_state.search_query = ""
+    if "search_sem" not in st.session_state: st.session_state.search_sem = "春学期"
+    if "search_day" not in st.session_state: st.session_state.search_day = "すべて"
+    if "search_per" not in st.session_state: st.session_state.search_per = "すべて"
+    if "search_labels" not in st.session_state: st.session_state.search_labels = []
 
-    # ==========================================
-    # ★ 1. カテゴリ（ラベル）検索のUIを追加
-    # ==========================================
-    # 使用頻度の高い順（M, O, P, L, S, Z）で表示
+    # 各入力パーツに key="..." を設定することで、自動的に選択状態が保持されます
+    query = st.text_input("キーワード (授業名・教員)", key="search_query")
+    
+    s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"], key="search_sem")
+    col_d, col_p = st.columns(2)
+    s_day = col_d.selectbox("曜日", ["すべて", "月", "火", "水", "木", "金"], key="search_day")
+    s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"], key="search_per")
+
     label_to_char = {
         "専門": "M", 
         "その他": "O", 
@@ -682,7 +688,8 @@ elif st.session_state.current_page == "search":
     selected_labels = st.multiselect(
         "🏷️ カテゴリで絞り込み", 
         list(label_to_char.keys()), 
-        placeholder="カテゴリを選択してください（複数可）"
+        placeholder="カテゴリを選択してください（複数可）",
+        key="search_labels"  # これで選んだカテゴリも消えなくなります
     )
 
     res = df.copy()
