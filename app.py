@@ -654,51 +654,66 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                         save_and_rerun()
 
 # ------------------------------------------
-# 画面2: 検索画面 (ゲスト制限あり)
+# 画面2: 検索画面
 # ------------------------------------------
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
-    query = st.text_input("キーワード (授業名・教員・コード)")
-    s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"])
-    col_d, col_p = st.columns(2)
-    s_day = col_d.selectbox("曜日", ["すべて", "月", "火", "水", "木", "金"])
-    s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"])
-
-    res = df.copy()
-    if s_sem != "すべて": res = res[res['学期'].str.contains(s_sem)]
-    if s_day != "すべて": res = res[res['曜日'].str.contains(s_day)]
-    if s_per != "すべて": res = res[res['時限'].astype(str).str.contains(s_per)]
-    if query: res = res[res['授業名'].str.contains(query, case=False) | res['担当教員'].str.contains(query, case=False) | res['授業コード'].str.contains(query, case=False)]
-
-    res = res.sort_values('優先度')
-    st.write(f"結果: **{len(res)}件** (50件まで)")
     
-    for _, row in res.head(50).iterrows():
-        with st.container(border=True):
-            t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(row)])
-            st.write(f"**{row['授業名']}**")
-            st.caption(f"コード: {row['授業コード']} | {row['学期']} | {t_str} | {row['担当教員']}")
-            
-            # ★ ゲストと登録ユーザーで表示を分ける
-            if st.session_state.is_guest:
-                st.markdown("<p style='font-size: 11px; color: #888; text-align: center; margin-bottom: 5px;'>👆 アカウント登録すると自分の時間割に追加できます</p>", unsafe_allow_html=True)
-                display_links(row.to_dict())
-            else:
-                c1, c2 = st.columns([1, 1])
-                active_sem = "春学期" if "春" in row['学期'] else "秋学期"
-                is_reg = row['授業コード'] in st.session_state.registered[active_sem]
-                with c1:
-                    if st.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}", use_container_width=True):
-                        toggle_register(active_sem, row.to_dict())
-                        save_and_rerun()
-                is_bk = row['授業コード'] in [b['授業コード'] for b in st.session_state.bookmarks]
-                with c2:
-                    if st.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}", use_container_width=True):
-                        if not is_bk: st.session_state.bookmarks.append(row.to_dict())
-                        else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
-                        save_and_rerun()
-                display_links(row.to_dict())
+    # ==========================================
+    # 2. 検索ボックスと曖昧検索処理
+    # ==========================================
+    query = st.text_input("キーワード (授業名・教員・コード)", placeholder="例: 経済　山田 (スペース区切りで複数指定可)")
+    
+    if query:
+        # ① 全角スペースを半角に変換し、前後の余白を消してリスト化（AND検索の準備）
+        query_normalized = query.replace("　", " ").strip()
+        keywords = query_normalized.split() 
 
+        # 検索元のデータフレームをコピー（変数名 df は環境に合わせてください）
+        filtered_df = df.copy() 
+
+        for kw in keywords:
+            # ② シラバス特化の語尾カット（「経済学」→「経済」などでヒット率を上げる）
+            if len(kw) >= 3 and kw.endswith(("学", "論", "I", "II", "Ⅰ", "Ⅱ")):
+                search_kw = kw[:-1]
+            else:
+                search_kw = kw
+                
+            # ③ 大文字小文字を区別せず、複数列をまたいでAND検索
+            # fillna('') を入れることで、空欄(NaN)によるエラーを完全に防ぎます
+            mask = (
+                filtered_df['科目名'].fillna('').astype(str).str.contains(search_kw, case=False) |
+                filtered_df['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False) |
+                filtered_df['時間割コード'].fillna('').astype(str).str.contains(search_kw, case=False)
+            )
+            filtered_df = filtered_df[mask]
+
+        # ==========================================
+        # 3. 検索結果の表示
+        # ==========================================
+        st.write(f"**{len(filtered_df)} 件の授業が見つかりました**")
+        
+        if not filtered_df.empty:
+            for index, row in filtered_df.iterrows():
+                # アコーディオン（折りたたみ）で各授業を表示
+                with st.expander(f"📖 {row.get('科目名', '不明')} ({row.get('担当教員', '不明')})"):
+                    # 基本情報の表示
+                    st.write(f"**時間割コード:** {row.get('時間割コード', '不明')} | **曜日・時限:** {row.get('曜日', '不明')} {row.get('時限', '不明')}")
+                    
+                    # 各種リンクボタンの表示（既存の関数を呼び出し）
+                    display_links(row)
+                    
+                    # ゲストではない場合のみ、登録ボタンを表示
+                    if not st.session_state.is_guest:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("✅ 本登録", key=f"reg_{index}"):
+                                register_course(row, "本登録") # ※Shoの既存の登録関数名に合わせてね
+                        with col2:
+                            if st.button("⭐ 候補へ", key=f"fav_{index}"):
+                                register_course(row, "候補") # ※Shoの既存の登録関数名に合わせてね
+        else:
+            st.warning("条件に一致する授業は見つかりませんでした。別のキーワードをお試しください。")
 # ------------------------------------------
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
