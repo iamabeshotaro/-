@@ -549,7 +549,10 @@ st.divider()
 # 画面1: マイ時間割
 # ------------------------------------------
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
-    
+# ==========================================
+    # ★ 追加: ページトップの目印（透明なアンカー）
+    # ==========================================
+    st.markdown("<div id='page-top'></div>", unsafe_allow_html=True)    
     if 'saved_tt_sem' not in st.session_state: 
         st.session_state.saved_tt_sem = "春学期"
 
@@ -687,12 +690,16 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                         st.session_state.active_slot = None
                         if "save_and_rerun" in globals(): save_and_rerun()
 
-    # ==========================================
-    # ★ 追加: 画面右下に追従する「一番上に戻る」ボタン
+# ==========================================
+    # ★ 修正: 画面右下に追従する「一番上に戻る」ボタン
     # ==========================================
     st.markdown(
         """
         <style>
+        /* スルスルッとスムーズにスクロールさせる魔法 */
+        html, body, .stApp {
+            scroll-behavior: smooth !important;
+        }
         .back-to-top {
             position: fixed;
             bottom: 20px;
@@ -711,7 +718,7 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
             background-color: rgba(100, 100, 100, 1.0);
         }
         </style>
-        <a href="#" class="back-to-top" title="一番上へ戻る">⬆️</a>
+        <a href="#page-top" class="back-to-top" title="一番上へ戻る">⬆️</a>
         """,
         unsafe_allow_html=True
     )
@@ -719,6 +726,10 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
 # 画面2: 検索画面 (ゲスト制限あり)
 # ------------------------------------------
 elif st.session_state.current_page == "search":
+# ==========================================
+    # ★ 追加: ページトップの目印（透明なアンカー）
+    # ==========================================
+    st.markdown("<div id='page-top'></div>", unsafe_allow_html=True)
     st.subheader("🔍 授業検索")
     
     if "search_query" not in st.session_state: st.session_state.search_query = ""
@@ -817,12 +828,16 @@ elif st.session_state.current_page == "search":
                 
                 if "display_links" in globals(): display_links(row.to_dict())
 
-    # ==========================================
-    # ★ 追加: 画面右下に追従する「一番上に戻る」ボタン
+# ==========================================
+    # ★ 修正: 画面右下に追従する「一番上に戻る」ボタン
     # ==========================================
     st.markdown(
         """
         <style>
+        /* スルスルッとスムーズにスクロールさせる魔法 */
+        html, body, .stApp {
+            scroll-behavior: smooth !important;
+        }
         .back-to-top {
             position: fixed;
             bottom: 20px;
@@ -841,7 +856,7 @@ elif st.session_state.current_page == "search":
             background-color: rgba(100, 100, 100, 1.0);
         }
         </style>
-        <a href="#" class="back-to-top" title="一番上へ戻る">⬆️</a>
+        <a href="#page-top" class="back-to-top" title="一番上へ戻る">⬆️</a>
         """,
         unsafe_allow_html=True
     )
