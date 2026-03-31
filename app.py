@@ -8,6 +8,9 @@ import os
 import time
 import html
 import extra_streamlit_components as stx
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import hashlib
 
 # ==========================================
 # 1. ページ設定とスマホ向け究極CSS (完全分離・Safari対応版)
@@ -203,37 +206,70 @@ if 'manual_logout' not in st.session_state: st.session_state.manual_logout = Fal
 if 'is_guest' not in st.session_state: st.session_state.is_guest = False
 
 # ==========================================
-# 3. データベース（JSON）とクッキー管理
+# 3. データベース（Google スプレッドシート）とクッキー管理
 # ==========================================
-USER_FILE = 'users_data.json'
+# ★ メモしたスプレッドシートのキーに書き換えてください
+SPREADSHEET_KEY = '1tcQYFQA7RxXvMPMfwRDpY8G5U3w-pEpwpzJoe4hplHI'
+
+# ダウンロードした秘密のJSONファイルのパス（app.pyと同じフォルダに置いて名前を合わせる）
+# ※デプロイする時は Streamlit Secrets に移行しますが、今はローカルテスト用です
+CREDENTIALS_FILE = 'gen-lang-client-0100435053-3a2f8d7142df.json'
+
+import json # ファイルの先頭付近に import json があるか確認してください（すでにあるはずです）
+
+def get_gspread_client():
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    
+    # ★ ローカルファイルからではなく、StreamlitのSecretsから直接読み込む設定に切り替え
+    # これにより、Web公開時に秘密鍵ファイルをGitHubに上げなくて済むようになります
+    try:
+        creds_dict = st.secrets["gcp_service_account"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    except Exception:
+        # ローカルテスト用（Secrets未設定時）のバックアップ動作
+        with open(CREDENTIALS_FILE, 'r', encoding='utf-8') as f:
+            creds_dict = json.load(f)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        
+    return gspread.authorize(creds)
 
 def load_users():
-    if not os.path.exists(USER_FILE): return {}
-    with open(USER_FILE, 'r', encoding='utf-8') as f:
-        users = json.load(f)
-        for u_data in users.values():
-            if "likes" not in u_data: u_data["likes"] = []
-            if "department" not in u_data: u_data["department"] = "未設定"
-            if "gender" not in u_data: u_data["gender"] = "未設定"
+    try:
+        client = get_gspread_client()
+        sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
+        records = sheet.get_all_records()
+        
+        users = {}
+        for row in records:
+            username = row.get('username')
+            data_str = row.get('data')
+            if username and data_str:
+                users[username] = json.loads(data_str)
         return users
+    except Exception as e:
+        st.error(f"データベースの読み込みに失敗しました: {e}")
+        return {}
 
 def save_users(users):
-    with open(USER_FILE, 'w', encoding='utf-8') as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
+    try:
+        client = get_gspread_client()
+        sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
+        
+        # スプレッドシートに書き込む形式にデータを整える
+        cell_data = [["username", "data"]] # 1行目のヘッダー
+        for uname, udata in users.items():
+            cell_data.append([uname, json.dumps(udata, ensure_ascii=False)])
+            
+        # 一旦シートをクリアして、新しいデータで上書きする
+        sheet.clear()
+        sheet.update('A1', cell_data)
+    except Exception as e:
+        st.error(f"データベースの保存に失敗しました: {e}")
 
 def hash_pass(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def save_and_rerun():
-    if st.session_state.current_user:
-        users = load_users()
-        u_name = st.session_state.current_user
-        if u_name in users:
-            users[u_name]['registered'] = st.session_state.registered
-            users[u_name]['bookmarks'] = st.session_state.bookmarks
-            save_users(users)
-    st.rerun()
-
+# --- クッキー管理 ---
 cookie_manager = stx.CookieManager()
 
 if st.session_state.pending_logout:
@@ -444,6 +480,17 @@ def render_image_download_button(semester, registered_data):
         height=60
     )
 
+def save_and_rerun():
+    # ゲストユーザーの場合はJSONファイルへの保存処理をスキップする
+    if st.session_state.current_user and not st.session_state.is_guest:
+        users = load_users()
+        u_name = st.session_state.current_user
+        if u_name in users:
+            users[u_name]['registered'] = st.session_state.registered
+            users[u_name]['bookmarks'] = st.session_state.bookmarks
+            save_users(users)
+    # 最後に必ず画面をリロード（再描画）する
+    st.rerun()
 
 # ==========================================
 # 7. ナビゲーションバー
