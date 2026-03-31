@@ -326,24 +326,7 @@ if not st.session_state.logged_in:
 
     st.title("🥐 C-krat")
     st.write("中央大学 商学部向け 時間割＆シラバス検索ツール")
-# ==========================================
-    # ★ 追加：利用者カウンター
-    # ==========================================
-    try:
-        current_users = load_users()
-        user_count = len(current_users)
-        # CSSで少し目立たせる、ワクワクするようなデザインにする
-        st.markdown(
-            f"""
-            <div style='text-align: center; padding: 12px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); border-radius: 10px; margin-bottom: 20px; color: #fff; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
-                🔥 現在 {user_count} 人の中大生が利用中！
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    except Exception:
-        pass # 万が一読み込めなくても、何事もなかったかのようにスルーする
-    # ==========================================    
+    
     auth_mode = st.radio("メニュー", ["ログイン", "新規登録"], horizontal=True)
     
     # ★変更点1：プレースホルダーで「メアド禁止」を視覚的に伝える
@@ -659,7 +642,7 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
             with st.form(f"custom_course_{d}_{p}"):
                 c_name = st.text_input("授業名（必須）")
                 c_teacher = st.text_input("担当教員")
-                c_credits = st.number_input("単位数", min_value=1, max_value=10, value=2, step=1)
+                c_credits = st.number_input("単位数", min_value=1, max_value=10, value=1, step=1)
                 if st.form_submit_button("✅ このコマに登録"):
                     if not c_name.strip(): st.error("入力してください")
                     else:
