@@ -325,7 +325,7 @@ if not st.session_state.logged_in:
             st.rerun()
 
     st.title("🥐 C-krat")
-    st.write("中央大学 商学部向け 時間割＆シラバス検索ツール")
+    st.write("商学部向け 時間割＆シラバス検索ツール")
     
     auth_mode = st.radio("メニュー", ["ログイン", "新規登録"], horizontal=True)
     
