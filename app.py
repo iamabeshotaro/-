@@ -648,8 +648,17 @@ elif st.session_state.current_page == "public":
     if not public_users:
         st.info("まだ他のユーザーがいません。")
     else:
+        # いいね数（人気順）で並び替え
         public_users.sort(key=lambda u: len(users[u].get('likes', [])), reverse=True)
-        selected_user = st.selectbox("時間割を見るユーザーを選択（人気順）", ["選択してください..."] + public_users)
+        
+        # ★ キーボード出現を防ぐため、アコーディオン（折りたたみ）＆ラジオボタンを採用
+        selected_user = "選択してください..."
+        with st.expander("👤 時間割を見るユーザーを選択（タップして開く）"):
+            selected_user = st.radio(
+                "ユーザーリスト（人気順）", 
+                ["選択してください..."] + public_users, 
+                label_visibility="collapsed"
+            )
         
         if selected_user != "選択してください...":
             target_data = users[selected_user]
@@ -658,43 +667,41 @@ elif st.session_state.current_page == "public":
             target_gender = target_data.get('gender', '未設定')
             
             c_head1, c_head2 = st.columns([3, 2])
-            with c_head1: p_sem = st.selectbox("表示する学期", ["春学期", "秋学期"])
+            with c_head1: 
+                p_sem = st.selectbox("表示する学期", ["春学期", "秋学期"])
             with c_head2:
                 has_liked = my_id in likes_list
                 like_btn_text = f"❤️ {len(likes_list)}" if has_liked else f"🤍 いいね ({len(likes_list)})"
                 if st.button(like_btn_text, use_container_width=True):
-                    if has_liked: target_data['likes'].remove(my_id)
-                    else: target_data['likes'].append(my_id)
+                    if has_liked: 
+                        target_data['likes'].remove(my_id)
+                    else: 
+                        target_data['likes'].append(my_id)
                     save_users(users)
                     st.rerun()
 
             st.write(f"👤 **{selected_user}** ({target_dept} / {target_gender}) さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             
+            # ★ スマホでも絶対に崩れない完璧なHTMLテーブル描画
             days = ["月", "火", "水", "木", "金"]
+            html_str = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px;"><tr><th style="width: 20px;"></th>'
+            for d in days: 
+                html_str += f'<th style="color: #666; font-size: 11px; padding: 4px 0; border-bottom: 2px solid #ddd; text-align:center;">{d}</th>'
+            html_str += '</tr>'
             
-            # みんなの時間割も統一して完全Gridに
-            cols = st.columns(6)
-            cols[0].empty()
-            for i, d in enumerate(days): 
-                cols[i+1].markdown(f"<div style='text-align:center; font-weight:bold; color:#666; font-size: 12px; padding-top: 5px;'>{d}</div>", unsafe_allow_html=True)
-                
             for p in range(1, 7):
-                cols = st.columns(6)
-                cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#999; font-size: 11px;'>{p}</div>", unsafe_allow_html=True)
-                for i, d in enumerate(days):
-                    with cols[i+1]:
-                        course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
-                        if course:
-                            # タップできない表示専用のボタン（UX統一のため）
-                            st.button(course['授業名'], key=f"pub_{d}_{p}", type="primary", use_container_width=True)
-                        else:
-                            st.button("　", key=f"pub_empty_{d}_{p}", type="secondary", use_container_width=True, disabled=True)
-
-    # ★ 【最重要】if〜elseブロックの「完全に外側」に、スマホ用の巨大な余白(60vh)を配置！
-    # これにより、ユーザーを選ぶ前でも必ず下に画面60%分のスペースが確保され、下に開くようになります。
-    st.markdown("<div style='height: 60vh;'></div>", unsafe_allow_html=True)
-
-
+                html_str += f'<tr><td style="color: #999; font-weight: bold; font-size: 11px; text-align: right; padding-right: 4px;">{p}</td>'
+                for d in days:
+                    course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
+                    if course:
+                        # 若者向けの鮮やかなグラデーションセル
+                        safe_name = html.escape(course['授業名'][:15])
+                        html_str += f'<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"><div style="background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%); border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><div style="font-size: 8px; font-weight: bold; line-height: 1.1; text-align: center; color: #ffffff;">{safe_name}</div></div></td>'
+                    else: 
+                        html_str += '<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"></td>'
+                html_str += '</tr>'
+            html_str += '</table>'
+            st.markdown(html_str, unsafe_allow_html=True)
 # ------------------------------------------
 # 画面5: マイページ
 # ------------------------------------------
