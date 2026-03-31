@@ -650,15 +650,17 @@ elif st.session_state.current_page == "public":
     else:
         public_users.sort(key=lambda u: len(users[u].get('likes', [])), reverse=True)
         
-        # ★ 選択状態を記憶するための初期設定
         if 'public_selected_user' not in st.session_state:
             st.session_state.public_selected_user = "選択してください..."
             
-        # ★ ここが魔法の仕掛け：「選択してください...」の時だけアコーディオンを開く
-        is_expanded = (st.session_state.public_selected_user == "選択してください...")
+        current_selection = st.session_state.public_selected_user
+        is_expanded = (current_selection == "選択してください...")
         
-        with st.expander("👤 時間割を見るユーザーを選択（タップして開く）", expanded=is_expanded):
-            # keyを指定することで、選んだ瞬間に自動で画面が更新(Rerun)される
+        # ★ 究極のハック：タイトルを動的に変える！
+        # タイトルが変わることでStreamlitが「新しい要素」と認識し、確実に閉じてくれます。
+        expander_title = "👤 ユーザーを選択（タップで開く）" if is_expanded else f"👤 現在表示中: {current_selection}（タップして変更）"
+        
+        with st.expander(expander_title, expanded=is_expanded):
             selected_user = st.radio(
                 "ユーザーリスト（人気順）", 
                 ["選択してください..."] + public_users, 
