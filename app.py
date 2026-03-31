@@ -745,8 +745,8 @@ elif st.session_state.current_page == "public":
             f"""
             <a href="{nexus_url}" target="_blank" style="text-decoration: none;">
                 <div style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 15px; border-radius: 8px; border-left: 5px solid #ff4b4b; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: 0.3s;">
-                    <h4 style="color: #ff4b4b; margin: 0 0 5px 0; font-size: 16px;">👁️ 秘密結社 NEXUS-403</h4>
-                    <p style="color: #e0e0e0; margin: 0; font-size: 12px;">製作者による授業評価データベース(NEXUS-403）はこちら</p>
+                    <h4 style="color: #ff4b4b; margin: 0 0 5px 0; font-size: 16px;">👁️NEXUS-403</h4>
+                    <p style="color: #e0e0e0; margin: 0; font-size: 12px;">製作者による授業評価データベースはこちら</p>
                 </div>
             </a>
             """, 
