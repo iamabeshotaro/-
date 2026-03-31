@@ -552,34 +552,42 @@ st.divider()
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
     
     # ==========================================
-    # ★ アップデート: ブックマークを「赤グラデーション＆極小化＆隙間詰め」にするCSS
+    # ★ アップデート: 1マスにまとめたボタンを赤くする「確実なCSS魔法」
     # ==========================================
     st.markdown("""
         <style>
-        /* 🔖が含まれるボタンの「親コンテナ」の余白を詰めて、縦に並んだ時の隙間をなくす */
-        div[data-testid="element-container"]:has(button p:contains("🔖")) {
-            margin-bottom: -12px !important;
+        /* 1. マーカー（目印）のコンテナを画面から完全に消し去る */
+        div[data-testid="element-container"]:has(.bk-marker) {
+            height: 0px !important;
+            margin: 0px !important;
+            padding: 0px !important;
+            overflow: hidden !important;
         }
-        /* 名前に「🔖」が含まれるボタンを赤く染め、極小サイズに圧縮する */
-        div[data-testid="stButton"] button:has(p:contains("🔖")) {
+        
+        /* 2. マーカーの「直後」にあるボタンを赤グラデーションにする */
+        div[data-testid="element-container"]:has(.bk-marker) + div[data-testid="element-container"] button {
             background: linear-gradient(135deg, #ff4b4b 0%, #b30000 100%) !important;
             color: white !important;
             border: none !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-            transition: 0.2s !important;
-            padding: 0px 2px !important; /* 内側の余白を極限まで削る */
-            min-height: 22px !important; /* ボタンの高さを低くする */
-            height: auto !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+            padding: 2px 0px !important;
+            min-height: 45px !important; 
+            height: 100% !important;
+            width: 100% !important;
         }
-        div[data-testid="stButton"] button:has(p:contains("🔖")):hover {
+        
+        div[data-testid="element-container"]:has(.bk-marker) + div[data-testid="element-container"] button:hover {
             background: linear-gradient(135deg, #ff6666 0%, #cc0000 100%) !important;
-            transform: translateY(-1px);
+            opacity: 0.9;
         }
-        /* ボタン内のテキスト（授業名）を極小にする */
-        div[data-testid="stButton"] button:has(p:contains("🔖")) p {
-            font-size: 10px !important; /* 文字を小さく */
+        
+        /* 3. ボタン内のテキスト設定（極小化 ＆ 複数行の改行を許可） */
+        div[data-testid="element-container"]:has(.bk-marker) + div[data-testid="element-container"] button p,
+        div[data-testid="element-container"]:has(.bk-marker) + div[data-testid="element-container"] button span {
+            font-size: 9px !important;       /* 文字をさらに小さく！ */
+            white-space: pre-wrap !important; /* "\n" での改行を有効にする魔法 */
+            line-height: 1.3 !important;
             margin: 0 !important;
-            line-height: 1.1 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -622,7 +630,7 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     
                     if course:
-                        # 本登録がある場合は通常のボタン
+                        # 本登録がある場合は通常の青い（テーマ色の）ボタン
                         label = course['授業名'][:11]
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
@@ -632,14 +640,23 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                         bk_courses = [c for c in st.session_state.bookmarks if semester.replace("学期","") in c['学期'] and (d, str(p)) in get_slot_pairs(c)]
                         
                         if bk_courses:
-                            # 候補が複数ある場合は、ループで全て表示する
-                            for idx, bk_c in enumerate(bk_courses):
-                                # 複数入ることを想定し、文字数を少し短め（6文字程度）にカット
-                                label = f"🔖{bk_c['授業名'][:6]}"
-                                # keyが重複しないように idx を末尾に付ける
-                                if st.button(label, key=f"cell_{d}_{p}_bk_{idx}", use_container_width=True):
-                                    st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
-                                    st.rerun()
+                            # 候補が複数ある場合、リストを作って「\n（改行）」で連結する
+                            # 1つのマスに収めるため、名前は5文字でカット
+                            labels = [f"🔖{c['授業名'][:5]}" for c in bk_courses]
+                            
+                            # 候補が3つ以上ある場合は、見た目重視で「他」と略す
+                            if len(labels) > 3:
+                                labels = labels[:2] + ["🔖他..."]
+                                
+                            combined_label = "\n".join(labels)
+                            
+                            # 【超重要】ボタンの直前に「透明な目印（マーカー）」を置くことで、CSSをこのボタンにだけ当てる
+                            st.markdown('<div class="bk-marker"></div>', unsafe_allow_html=True)
+                            
+                            # 1マスに1つのボタンを配置
+                            if st.button(combined_label, key=f"cell_{d}_{p}_bk", use_container_width=True):
+                                st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
+                                st.rerun()
                         else:
                             # 3. どちらもない場合は「＋」ボタン
                             if st.button("＋", key=f"cell_{d}_{p}", type="secondary", use_container_width=True):
