@@ -671,21 +671,30 @@ elif st.session_state.current_page == "public":
             st.write(f"👤 **{selected_user}** ({target_dept} / {target_gender}) さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             
             days = ["月", "火", "水", "木", "金"]
-            html_str = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;"><tr><th style="width: 20px;"></th>'
-            for d in days: html_str += f'<th style="color: #666; font-size: 11px; padding: 4px 0; border-bottom: 2px solid #ddd; text-align:center;">{d}</th>'
-            html_str += '</tr>'
+            
+            # みんなの時間割も統一して完全Gridに
+            cols = st.columns(6)
+            cols[0].empty()
+            for i, d in enumerate(days): 
+                cols[i+1].markdown(f"<div style='text-align:center; font-weight:bold; color:#666; font-size: 12px; padding-top: 5px;'>{d}</div>", unsafe_allow_html=True)
+                
             for p in range(1, 7):
-                html_str += f'<tr><td style="color: #999; font-weight: bold; font-size: 11px; text-align: right; padding-right: 4px;">{p}</td>'
-                for d in days:
-                    course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
-                    if course:
-                        safe_name = html.escape(course['授業名'][:15])
-                        html_str += f'<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"><div style="background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%); border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2px;"><div style="font-size: 8px; font-weight: bold; line-height: 1.1; text-align: center; color: #ffffff;">{safe_name}</div></div></td>'
-                    else: html_str += '<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"></td>'
-                html_str += '</tr>'
-            html_str += '</table>'
-            st.markdown(html_str, unsafe_allow_html=True)
-    st.markdown("<div style='height: 300px;'></div>", unsafe_allow_html=True)
+                cols = st.columns(6)
+                cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#999; font-size: 11px;'>{p}</div>", unsafe_allow_html=True)
+                for i, d in enumerate(days):
+                    with cols[i+1]:
+                        course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
+                        if course:
+                            # タップできない表示専用のボタン（UX統一のため）
+                            st.button(course['授業名'], key=f"pub_{d}_{p}", type="primary", use_container_width=True)
+                        else:
+                            st.button("　", key=f"pub_empty_{d}_{p}", type="secondary", use_container_width=True, disabled=True)
+
+    # ★ 【最重要】if〜elseブロックの「完全に外側」に、スマホ用の巨大な余白(60vh)を配置！
+    # これにより、ユーザーを選ぶ前でも必ず下に画面60%分のスペースが確保され、下に開くようになります。
+    st.markdown("<div style='height: 60vh;'></div>", unsafe_allow_html=True)
+
+
 # ------------------------------------------
 # 画面5: マイページ
 # ------------------------------------------
