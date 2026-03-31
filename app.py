@@ -658,18 +658,32 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
 # ------------------------------------------
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
+    
+    # 検索窓のプレースホルダーから「コード」を削除してスッキリさせました
     query = st.text_input("キーワード (授業名・教員)")
+    
     s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"])
     col_d, col_p = st.columns(2)
     s_day = col_d.selectbox("曜日", ["すべて", "月", "火", "水", "木", "金"])
     s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"])
 
     # ==========================================
-    # ★ 1. 独自ラベル検索のUIを追加
+    # ★ 1. カテゴリ（ラベル）検索のUIを追加
     # ==========================================
-    # ※ここに検索の選択肢に出したいラベル（タグ）を自由に設定してください
-    available_labels = ["必修", "選択", "オンライン", "対面", "語学", "ゼミ"]
-    selected_labels = st.multiselect("🏷️ ラベルで絞り込み", available_labels, placeholder="ラベルを選択してください")
+    # 使用頻度の高い順（M, O, P, L, S, Z）で表示
+    label_to_char = {
+        "専門": "M", 
+        "その他": "O", 
+        "プログラム": "P", 
+        "言語": "L", 
+        "スポーツ": "S", 
+        "ゼミ": "Z"
+    }
+    selected_labels = st.multiselect(
+        "🏷️ カテゴリで絞り込み", 
+        list(label_to_char.keys()), 
+        placeholder="カテゴリを選択してください（複数可）"
+    )
 
     res = df.copy()
     if s_sem != "すべて": res = res[res['学期'].str.contains(s_sem, na=False)]
@@ -677,44 +691,34 @@ elif st.session_state.current_page == "search":
     if s_per != "すべて": res = res[res['時限'].astype(str).str.contains(s_per, na=False)]
     
     # ==========================================
-    # ★ 2. 4桁の授業コードを使ったラベル絞り込み処理
+    # ★ 2. 授業コードの「2文字目」を使った絞り込み
     # ==========================================
     if selected_labels:
-        # 【設定】4桁の授業コードと、それに付与するラベルの紐付けデータ
-        # 左側に4桁の授業コード、右側にラベルのリストを記述します
-        course_label_data = {
-            "FS00": ["必修", "対面"],
-            "FS01": ["選択", "オンライン"],
-            "FO17": ["語学", "対面"],
-            # ... 必要に応じてデータを追加
-        }
+        # 選ばれたラベルに対応するアルファベット（例: "M", "O"）のリストを作る
+        selected_chars = [label_to_char[l] for l in selected_labels]
         
-        # 選択されたラベルを「どれか1つでも」持っている4桁コードを抽出（OR検索）
-        target_codes = [
-            code for code, labels in course_label_data.items() 
-            if any(l in selected_labels for l in labels)
-        ]
-        
-        # CSVの「授業コード」列が、抽出したtarget_codesの中に含まれる行だけを残す
-        res = res[res['授業コード'].isin(target_codes)]
-    # ==========================================
+        # 授業コードの「2文字目（インデックス1）」が、リストの中にあるものだけを残す
+        # ※ 空欄によるエラーを防ぐため .fillna('') を挟んでいます
+        res = res[res['授業コード'].fillna('').astype(str).str[1].isin(selected_chars)]
 
     # ==========================================
-    # ★ 3. キーワードの曖昧検索（AND検索）
+    # ★ 3. キーワードの曖昧検索（「コード」を除外してノイズ削減）
     # ==========================================
     if query:
         query_normalized = query.replace("　", " ").strip()
         keywords = query_normalized.split()
         
         for kw in keywords:
+            # 語尾カット処理（「学」「論」などを削る）
             if len(kw) >= 3 and kw.endswith(("学", "論", "I", "II", "Ⅰ", "Ⅱ")):
                 search_kw = kw[:-1]
             else:
                 search_kw = kw
                 
+            # 【変更点】検索対象を「授業名」と「担当教員」のみに絞りました
             mask = (
                 res['授業名'].fillna('').astype(str).str.contains(search_kw, case=False) | 
-                res['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False) 
+                res['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False)
             )
             res = res[mask]
 
@@ -735,7 +739,6 @@ elif st.session_state.current_page == "search":
                 c1, c2 = st.columns([1, 1])
                 active_sem = "春学期" if "春" in row['学期'] else "秋学期"
                 
-                # エラー回避のための辞書アクセス
                 reg_dict = st.session_state.registered.get(active_sem, {})
                 is_reg = row['授業コード'] in reg_dict
                 
@@ -756,6 +759,8 @@ elif st.session_state.current_page == "search":
                         if "save_and_rerun" in globals(): save_and_rerun()
                 
                 if "display_links" in globals(): display_links(row.to_dict())
+
+
 # ------------------------------------------
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
