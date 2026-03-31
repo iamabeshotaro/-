@@ -648,15 +648,21 @@ elif st.session_state.current_page == "public":
     if not public_users:
         st.info("まだ他のユーザーがいません。")
     else:
-        # いいね数（人気順）で並び替え
         public_users.sort(key=lambda u: len(users[u].get('likes', [])), reverse=True)
         
-        # ★ キーボード出現を防ぐため、アコーディオン（折りたたみ）＆ラジオボタンを採用
-        selected_user = "選択してください..."
-        with st.expander("👤 時間割を見るユーザーを選択（タップして開く）"):
+        # ★ 選択状態を記憶するための初期設定
+        if 'public_selected_user' not in st.session_state:
+            st.session_state.public_selected_user = "選択してください..."
+            
+        # ★ ここが魔法の仕掛け：「選択してください...」の時だけアコーディオンを開く
+        is_expanded = (st.session_state.public_selected_user == "選択してください...")
+        
+        with st.expander("👤 時間割を見るユーザーを選択（タップして開く）", expanded=is_expanded):
+            # keyを指定することで、選んだ瞬間に自動で画面が更新(Rerun)される
             selected_user = st.radio(
                 "ユーザーリスト（人気順）", 
                 ["選択してください..."] + public_users, 
+                key="public_selected_user", 
                 label_visibility="collapsed"
             )
         
@@ -682,7 +688,6 @@ elif st.session_state.current_page == "public":
 
             st.write(f"👤 **{selected_user}** ({target_dept} / {target_gender}) さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             
-            # ★ スマホでも絶対に崩れない完璧なHTMLテーブル描画
             days = ["月", "火", "水", "木", "金"]
             html_str = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px;"><tr><th style="width: 20px;"></th>'
             for d in days: 
@@ -694,7 +699,6 @@ elif st.session_state.current_page == "public":
                 for d in days:
                     course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 若者向けの鮮やかなグラデーションセル
                         safe_name = html.escape(course['授業名'][:15])
                         html_str += f'<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"><div style="background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%); border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><div style="font-size: 8px; font-weight: bold; line-height: 1.1; text-align: center; color: #ffffff;">{safe_name}</div></div></td>'
                     else: 
