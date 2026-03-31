@@ -552,19 +552,34 @@ st.divider()
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
     
     # ==========================================
-    # ★ 1. ページを移動しても絶対に消えない「保存用」の変数を用意
+    # ★ 追加: ブックマークを赤グラデーションにするCSS魔法
     # ==========================================
+    st.markdown("""
+        <style>
+        /* 名前に「🔖」が含まれるボタンをターゲットにして赤グラデーション化 */
+        div[data-testid="stButton"] button:has(p:contains("🔖")) {
+            background: linear-gradient(135deg, #ff4b4b 0%, #b30000 100%) !important;
+            color: white !important;
+            border: none !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+            transition: 0.3s !important;
+        }
+        div[data-testid="stButton"] button:has(p:contains("🔖")):hover {
+            background: linear-gradient(135deg, #ff6666 0%, #cc0000 100%) !important;
+            transform: translateY(-2px);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     if 'saved_tt_sem' not in st.session_state: 
         st.session_state.saved_tt_sem = "春学期"
 
-    # ★ 2. セレクトボックスが操作された瞬間に、保存用の変数を上書きする関数
     def update_tt_sem():
         st.session_state.saved_tt_sem = st.session_state.tt_sem_widget
         
     if st.session_state.active_slot is None:
         col_h1, col_h2 = st.columns([3, 2])
         with col_h1:
-            # ★ 3. indexを使って前回選んだものを復元し、on_changeで保存関数を呼び出す
             current_idx = 0 if st.session_state.saved_tt_sem == "春学期" else 1
             semester = st.selectbox(
                 "学期", 
@@ -579,31 +594,44 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
 
         days = ["月", "火", "水", "木", "金"]
         
-        # ヘッダー行
         cols = st.columns(6)
         cols[0].markdown("") 
         for i, d in enumerate(days): 
             cols[i+1].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
             
-        # データ行
         for p in range(1, 7):
             cols = st.columns(6)
             cols[0].markdown(f"<div class='tt-time'>{p}</div>", unsafe_allow_html=True)
             
             for i, d in enumerate(days):
                 with cols[i+1]:
+                    # 1. まず「本登録」の授業を探す
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
+                    
                     if course:
+                        # 本登録がある場合は青（またはテーマ色）のボタン
                         label = course['授業名'][:11]
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
                             st.rerun()
                     else:
-                        if st.button("＋", key=f"cell_{d}_{p}", type="secondary", use_container_width=True):
-                            st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
-                            st.rerun()
+                        # 2. 本登録がない場合、「ブックマーク（候補）」の授業を探す
+                        # ブックマークのリストから、学期と曜日・時限が一致するものを検索
+                        bk_course = next((c for c in st.session_state.bookmarks if semester.replace("学期","") in c['学期'] and (d, str(p)) in get_slot_pairs(c)), None)
+                        
+                        if bk_course:
+                            # ブックマークがある場合は、🔖をつけてCSSで赤く染める
+                            label = f"🔖 {bk_course['授業名'][:9]}"
+                            if st.button(label, key=f"cell_{d}_{p}_bk", use_container_width=True):
+                                # ※開いた時は「未登録」扱いにするため course は None を渡します
+                                st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
+                                st.rerun()
+                        else:
+                            # 3. どちらもない場合は「＋」ボタン
+                            if st.button("＋", key=f"cell_{d}_{p}", type="secondary", use_container_width=True):
+                                st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
+                                st.rerun()
 
-        # 画像ダウンロードボタンがあれば表示
         if "render_image_download_button" in globals():
             render_image_download_button(semester, st.session_state.registered)
 
@@ -611,8 +639,6 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
         d = st.session_state.active_slot['day']
         p = st.session_state.active_slot['period']
         course = st.session_state.active_slot['course']
-        
-        # ★ 4. コマの編集画面に入った時も「保存用変数」を参照する
         semester = st.session_state.saved_tt_sem
 
         col_title, col_close = st.columns([4, 1])
