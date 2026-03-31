@@ -255,16 +255,17 @@ def save_users(users):
         client = get_gspread_client()
         sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
         
-        # ヘッダー
-        cell_data = [["username", "data"]]
+        # スプレッドシートに書き込む形式にデータを整える
+        cell_data = [["username", "data"]] # 1行目のヘッダー
         for uname, udata in users.items():
             cell_data.append([uname, json.dumps(udata, ensure_ascii=False)])
             
+        # 一旦シートをクリアして、新しいデータで上書きする
         sheet.clear()
         sheet.update('A1', cell_data)
-        st.toast("✅ スプレッドシートを更新しました！")
     except Exception as e:
-        st.error(f"DB保存エラー: {e}")
+        st.error(f"データベースの保存に失敗しました: {e}")
+
 def hash_pass(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
