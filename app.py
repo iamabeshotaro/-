@@ -545,14 +545,11 @@ st.divider()
 # ==========================================
 # 8. メインUI
 # ==========================================
-
 # ------------------------------------------
 # 画面1: マイ時間割
 # ------------------------------------------
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
     
-    # CSSのハック部分はすべて削除し、クリーンな状態に戻しました！
-
     if 'saved_tt_sem' not in st.session_state: 
         st.session_state.saved_tt_sem = "春学期"
 
@@ -587,21 +584,17 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
             
             for i, d in enumerate(days):
                 with cols[i+1]:
-                    # 1. まず「本登録」の授業を探す
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     
                     if course:
-                        # 本登録がある場合は通常の青い（テーマ色の）ボタン
                         label = course['授業名'][:11]
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
                             st.rerun()
                     else:
-                        # 2. 本登録がない場合、「ブックマーク（候補）」の授業を【全て】探す
                         bk_courses = [c for c in st.session_state.bookmarks if semester.replace("学期","") in c['学期'] and (d, str(p)) in get_slot_pairs(c)]
                         
                         if bk_courses:
-                            # ★ 複数ある場合、スマホ最適化のために「6文字」でカットして改行で繋ぐ
                             labels = [f"🔖{c['授業名'][:6]}" for c in bk_courses]
                             combined_label = "\n".join(labels)
                             
@@ -609,7 +602,6 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                                 st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
                                 st.rerun()
                         else:
-                            # 3. どちらもない場合は「＋」ボタン
                             if st.button("＋", key=f"cell_{d}_{p}", type="secondary", use_container_width=True):
                                 st.session_state.active_slot = {'day': d, 'period': p, 'course': None}
                                 st.rerun()
@@ -642,7 +634,16 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
             if semester.replace("学期","") in row['学期'] and (d, str(p)) in get_slot_pairs(row): mask.append(True)
             else: mask.append(False)
                 
-        slot_courses = df[mask].sort_values('優先度') if '優先度' in df.columns else df[mask]
+        # ★ 修正: ブックマーク（候補）判定フラグを作り、それを最優先で上に持ってくる（降順ソート）
+        slot_courses = df[mask].copy()
+        bk_codes = [bk.get('授業コード') for bk in st.session_state.bookmarks] if isinstance(st.session_state.bookmarks, list) else []
+        slot_courses['is_bk'] = slot_courses['授業コード'].isin(bk_codes)
+        
+        if '優先度' in slot_courses.columns:
+            slot_courses = slot_courses.sort_values(by=['is_bk', '優先度'], ascending=[False, True])
+        else:
+            slot_courses = slot_courses.sort_values(by=['is_bk'], ascending=[False])
+
         if len(slot_courses) == 0: st.info("この時間に開講されているシラバス掲載の授業はありません。")
             
         for _, row in slot_courses.head(30).iterrows():
@@ -658,8 +659,7 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                         st.session_state.active_slot = None 
                         if "save_and_rerun" in globals(): save_and_rerun()
                 
-                bk_list = [bk['授業コード'] for bk in st.session_state.bookmarks] if isinstance(st.session_state.bookmarks, list) else []
-                is_bk = row['授業コード'] in bk_list
+                is_bk = row['is_bk'] # 上で作った判定フラグをそのまま利用
                 with b2:
                     if st.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_{row['授業コード']}", use_container_width=True):
                         if not is_bk: 
@@ -686,6 +686,35 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                             })
                         st.session_state.active_slot = None
                         if "save_and_rerun" in globals(): save_and_rerun()
+
+    # ==========================================
+    # ★ 追加: 画面右下に追従する「一番上に戻る」ボタン
+    # ==========================================
+    st.markdown(
+        """
+        <style>
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(100, 100, 100, 0.7);
+            color: white !important;
+            padding: 12px 14px;
+            border-radius: 50%;
+            text-decoration: none;
+            font-size: 20px;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: 0.3s;
+        }
+        .back-to-top:hover {
+            background-color: rgba(100, 100, 100, 1.0);
+        }
+        </style>
+        <a href="#" class="back-to-top" title="一番上へ戻る">⬆️</a>
+        """,
+        unsafe_allow_html=True
+    )
 # ------------------------------------------
 # 画面2: 検索画面 (ゲスト制限あり)
 # ------------------------------------------
