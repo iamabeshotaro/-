@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import re
 import json
@@ -10,7 +9,7 @@ import html
 import extra_streamlit_components as stx
 
 # ==========================================
-# 1. ページ設定とスマホ向け究極CSS (完全分離版)
+# 1. ページ設定とスマホ向け究極CSS (CSS Grid Hack)
 # ==========================================
 st.set_page_config(page_title="C-krat", layout="centered", initial_sidebar_state="collapsed")
 
@@ -31,150 +30,115 @@ st.markdown("""
     .stApp { background-color: #f8f9fa; }
     @media (prefers-color-scheme: dark) { .stApp { background-color: #0e1117; } }
 
-    /* ヘッダー非表示 */
+    /* スマホ画面を広く使うためヘッダーを隠す */
     header { visibility: hidden; height: 0px !important; }
     
     @media screen and (max-width: 768px) {
-        /* ドロップダウンが上に開くのを防ぐため、画面下部に広大な余白を確保 */
-        .block-container { 
-            padding-top: 0.5rem !important; 
-            padding-bottom: 250px !important; 
-            padding-left: 0.2rem !important; 
-            padding-right: 0.2rem !important; 
-            max-width: 100% !important; 
-        }
+        .block-container { padding: 0.5rem 0.2rem !important; max-width: 100% !important; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5)) button { font-size: 10px !important; padding: 2px !important; }
     }
 
     /* 縦の隙間を完全に消す */
     div[data-testid="stVerticalBlockBorderWrapper"] > div { gap: 0px !important; }
 
-    @media screen and (max-width: 768px) {
-        /* スマホ幅では横並び要素を絶対に縦に積まない */
-        div[data-testid="stHorizontalBlock"] {
-            display: flex !important;
-            flex-wrap: nowrap !important;
-            gap: 2px !important;
-            margin-bottom: 4px !important;
-        }
+    /* =========================================
+       ★ 魔法のCSS: Streamlitのボタンを完全なHTMLテーブルに変換する
+       ========================================= */
+    /* 6列のブロックをCSS Gridで強制的にテーブル化 */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
+        display: grid !important;
+        grid-template-columns: 24px repeat(5, 1fr) !important; /* 時限列は24px固定、残りは均等割り */
+        gap: 0 !important;
+        width: 100% !important;
+        border-top: 1px solid #e0e0e0;
+    }
+    
+    /* 各セル（カラム）の設定 */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] {
+        width: 100% !important;
+        flex: none !important;
+        padding: 0 !important;
+        border-right: 1px dashed #e0e0e0;
+        border-bottom: 1px dashed #e0e0e0;
+        min-height: 70px; /* セルの高さを少し確保 */
+        display: flex;
+        align-items: stretch;
+        justify-content: stretch;
+    }
+    
+    /* 1列目（時限の数字）の背景色と線 */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child {
+        border-left: 1px solid #e0e0e0;
+        border-right: 1px solid #e0e0e0;
+        background-color: #fafafa;
+    }
+    /* 金曜日の右側の線 */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:last-child {
+        border-right: 1px solid #e0e0e0;
     }
 
     /* =========================================
-       ★ 5列：ナビゲーションバー（メニュー）の美しいデザイン
+       ★ セルの中のボタンデザイン（余白ゼロ・完全塗りつぶし）
        ========================================= */
-    /* 5列のブロックを特定 */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5),
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div {
-        width: 20% !important; 
-        min-width: 20% !important;
-        padding: 0 2px !important;
-    }
-
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) div.stButton {
-        width: 100% !important; margin: 0 !important; padding: 0 !important;
-    }
-
-    /* ナビゲーションのボタン本体（アプリのタブバー風） */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button,
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button {
+    /* Streamlitが勝手に作る透明な箱（ラッパー）を100%に広げる */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) div.stButton {
         width: 100% !important;
-        height: 48px !important;
-        border: none !important;
-        border-radius: 12px !important; /* 丸くて可愛い形に */
-        background-color: #ffffff !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important; /* ふんわり浮かせる */
-        padding: 0 !important;
-    }
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button p,
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button p {
-        font-size: 20px !important; /* 絵文字を大きく */
+        height: 100% !important;
+        display: flex !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
         margin: 0 !important;
-    }
-
-    /* 選択中（アクティブ）のタブ */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button[kind="primary"],
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button[kind="primary"] {
-        background-color: #e0f2fe !important; /* 薄い水色 */
-        box-shadow: inset 0 0 0 1.5px #56CCF2 !important; /* 枠線を光らせる */
-    }
-
-    /* =========================================
-       ★ 6列：時間割グリッドの完全固定＆鮮やかデザイン
-       ========================================= */
-    /* 1列目（時限：10%） */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) {
-        width: 10% !important; flex: 0 0 10% !important; min-width: 10% !important;
-        padding: 0 !important; display: flex; align-items: center; justify-content: center;
-    }
-    /* 2〜6列目（月〜金：18%） */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div {
-        width: 18% !important; flex: 0 0 18% !important; min-width: 18% !important;
         padding: 0 !important;
     }
 
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div div.stButton {
-        width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important;
-    }
-
-    /* 時間割セル（ボタン）の本体 */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button {
+    /* ボタン本体の設定 */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
         width: 100% !important;
-        height: 75px !important; /* 高さを完全固定 */
+        height: 100% !important;
+        min-height: 70px !important;
         border: none !important;
-        border-radius: 8px !important; /* 角丸 */
+        border-radius: 0 !important; /* 角丸を消して完全に箱の隅まで塗る */
+        background-color: transparent !important;
         padding: 2px !important; 
+        font-size: 10px !important; /* 5文字入る絶妙なサイズ */
+        font-weight: 700 !important;
+        letter-spacing: -0.5px !important; /* 文字間を詰める */
+        word-break: break-all !important; /* 枠の端で強制的に折り返す */
+        line-height: 1.15 !important;
+        white-space: pre-wrap !important;
         margin: 0 !important;
         box-shadow: none !important;
     }
 
-    /* セル内のテキスト（1行5文字） */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button p {
-        font-size: 10px !important; 
-        font-weight: 700 !important;
-        line-height: 1.15 !important;
-        letter-spacing: -0.5px !important;
-        margin: 0 !important;
-        white-space: normal !important;
-        word-break: break-all !important;
-        display: -webkit-box !important;
-        -webkit-line-clamp: 4 !important;
-        -webkit-box-orient: vertical !important;
-        overflow: hidden !important;
+    /* 登録済みのコマ（青いセル） */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] {
+        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important;
+        color: #1a365d !important;
+        /* 余白と影を完全に消し去る */
+        margin: 0 !important; 
+        width: 100% !important;
+        height: 100% !important;
+        box-shadow: none !important; 
     }
 
-    /* 登録済みのコマ（鮮やか青紫グラデーション） */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="primary"] {
-        background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%) !important;
-        color: #ffffff !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; 
-    }
-
-    /* 空きコマ（点線枠） */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="secondary"] {
-        background-color: transparent !important;
-        border: 1px dashed #d0d0d0 !important;
+    /* 空きコマ（＋マーク） */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="secondary"] {
         color: #d0d0d0 !important;
-    }
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="secondary"] p {
-        font-size: 14px !important; 
+        font-size: 14px !important;
     }
 
-    /* タップアニメーション */
-    div[data-testid="stHorizontalBlock"] button:active { transform: scale(0.95) !important; }
+    /* タップ時のへこみアニメーション（少し控えめに） */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button:active { transform: scale(0.97) !important; }
 
-    /* ダークモード対応 */
     @media (prefers-color-scheme: dark) {
-        div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button, div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button { background-color: #222 !important; box-shadow: none !important; }
-        div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button[kind="primary"], div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button[kind="primary"] { background-color: #333 !important; box-shadow: inset 0 0 0 1.5px #56CCF2 !important; }
-        div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="primary"] { background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%) !important; }
-        div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="secondary"] { border-color: #555 !important; color: #555 !important; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) { border-top: 1px solid #444; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] { border-color: #444; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child { background-color: #222; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%) !important; color: #fff !important; }
     }
 
-    /* 時限ラベルの文字デザイン */
-    .tt-header { text-align: center; font-size: 11px; font-weight: bold; color: #666; padding-bottom: 2px; border-bottom: 2px solid #eee; margin-bottom: 2px; }
-    .tt-time { text-align: center; font-size: 11px; font-weight: bold; color: #aaa; margin-top: 20px; }
-
-    /* その他の汎用ボタン */
-    div.stButton > button:not(div[data-testid="stHorizontalBlock"] button) {
+    /* 通常のボタン設定（ナビゲーションなどはそのまま維持） */
+    div.stButton > button:not(div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button) {
         border-radius: 10px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
         font-weight: 600 !important; padding: 6px 4px !important; min-height: 44px !important;
     }
@@ -322,7 +286,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==========================================
-# 6. 共通関数
+# 6. 共通関数 (display_links を修正)
 # ==========================================
 def get_slot_pairs(course):
     d_list = str(course['曜日']).split()
@@ -354,16 +318,14 @@ def get_total_credits(semester_data):
         if match: total += float(match.group(1))
     return total
 
+# 修正：シラバスとみんキャンリンクを縦並び（2行）にする
 def display_links(course):
-    l1, l2 = st.columns(2)
-    with l1:
-        if course.get('詳細URL') and course['詳細URL'] != "不明": 
-            st.link_button("📄 シラバス", course['詳細URL'], use_container_width=True)
-    with l2:
-        if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
-            st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
+    # l1, l2 = st.columns(2) を削除
+    if course.get('詳細URL') and course['詳細URL'] != "不明": 
+        st.link_button("📄 シラバス", course['詳細URL'], use_container_width=True)
+    if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
+        st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
 
-# ダウンロード画像と「みんなの時間割」も鮮やかなグラデーションに統一
 def render_image_download_button(semester, registered_data):
     days = ["月", "火", "水", "木", "金"]
     html_str = '<div id="timetable-capture-area" style="background-color: #ffffff; padding: 15px; border-radius: 12px; font-family: \'Helvetica Neue\', Arial, \'Hiragino Kaku Gothic ProN\', \'Hiragino Sans\', Meiryo, sans-serif; position: absolute; top: -9999px; left: -9999px; width: 1024px;">'
@@ -379,7 +341,7 @@ def render_image_download_button(semester, registered_data):
             if course:
                 safe_name = html.escape(course['授業名'][:19])
                 safe_teacher = html.escape(course['担当教員'].split()[0] if course['担当教員'] != "不明" else "")
-                html_str += f'<td style="border: 1px dashed #e0e0e0; height: 100px; padding: 4px;"><div style="background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%); border-radius: 10px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="font-size: 14px; font-weight: bold; line-height: 1.2; text-align: center; color: #ffffff; letter-spacing: -0.5px; word-break: break-all;">{safe_name}</div><div style="font-size: 11px; color: #ffffff; margin-top:3px; opacity: 0.9;">{safe_teacher}</div></div></td>'
+                html_str += f'<td style="border: 1px dashed #e0e0e0; height: 100px; padding: 4px;"><div style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border-radius: 10px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="font-size: 13px; font-weight: bold; line-height: 1.2; text-align: center; color: #1a365d;">{safe_name}</div><div style="font-size: 10px; color: #1a365d; margin-top:3px;">{safe_teacher}</div></div></td>'
             else:
                 html_str += '<td style="border: 1px dashed #e0e0e0; height: 100px; padding: 4px;"></td>'
         html_str += '</tr>'
@@ -417,7 +379,7 @@ def render_image_download_button(semester, registered_data):
 
 
 # ==========================================
-# 7. ナビゲーションバー (美しい5列)
+# 7. ナビゲーション
 # ==========================================
 nav1, nav2, nav3, nav4, nav5 = st.columns(5)
 if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True, help="マイ時間割"):
@@ -442,7 +404,7 @@ st.divider()
 # ==========================================
 
 # ------------------------------------------
-# 画面1: マイ時間割
+# 画面1: マイ時間割 (究極のCSS Grid Table版)
 # ------------------------------------------
 if st.session_state.current_page == "tt":
     if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
@@ -457,23 +419,24 @@ if st.session_state.current_page == "tt":
 
         days = ["月", "火", "水", "木", "金"]
         
-        # ヘッダー行（必ず6列）
+        # ヘッダー行
         cols = st.columns(6)
         cols[0].markdown("") 
         for i, d in enumerate(days): 
-            cols[i+1].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
+            cols[i+1].markdown(f"<div style='text-align:center; font-weight:bold; color:#666; font-size: 11px; padding-top: 5px;'>{d}</div>", unsafe_allow_html=True)
             
-        # データ行（1〜6限）
+        # データ行
         for p in range(1, 7):
             cols = st.columns(6)
-            cols[0].markdown(f"<div class='tt-time'>{p}</div>", unsafe_allow_html=True)
+            cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#999; font-size: 11px; height: 100%; display: flex; align-items: center; justify-content: center;'>{p}</div>", unsafe_allow_html=True)
             
             for i, d in enumerate(days):
                 with cols[i+1]:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 教員名非表示・授業名のみ
+                        # 授業名のみ長めに取得
                         label = course['授業名'][:11]
+                        
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
                             st.rerun()
@@ -611,6 +574,7 @@ elif st.session_state.current_page == "bk":
                 toggle_register(active_sem, b)
                 save_and_rerun()
                 
+            # 修正：削除ボタンのテキストから授業名を削除し、短くする
             if c2.button("🗑️ 削除", key=f"bk_del_{b['授業コード']}"):
                 st.session_state.bookmarks = [x for x in st.session_state.bookmarks if x['授業コード'] != b['授業コード']]
                 if is_reg: del st.session_state.registered[active_sem][b['授業コード']]
@@ -663,9 +627,8 @@ elif st.session_state.current_page == "public":
                 for d in days:
                     course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # みんなの時間割も同じグラデーションに
                         safe_name = html.escape(course['授業名'][:15])
-                        html_str += f'<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"><div style="background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%); border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2px;"><div style="font-size: 8px; font-weight: bold; line-height: 1.1; text-align: center; color: #ffffff;">{safe_name}</div></div></td>'
+                        html_str += f'<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"><div style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2px;"><div style="font-size: 8px; font-weight: bold; line-height: 1.1; text-align: center; color: #1a365d;">{safe_name}</div></div></td>'
                     else: html_str += '<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"></td>'
                 html_str += '</tr>'
             html_str += '</table>'
