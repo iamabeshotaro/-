@@ -11,21 +11,7 @@ import extra_streamlit_components as stx
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import hashlib
-from PIL import Image # ★ 画像を読み込むためのライブラリを追加
 
-# ==========================================
-# ★ アプリの基本設定（必ず一番最初に書くこと！）
-# ==========================================
-# 用意した画像を読み込む
-img = Image.open("icon.png")
-
-st.set_page_config(
-    page_title="C-krat", # ブラウザのタブに表示される名前
-    page_icon=img,                          # ★ ここで画像をアイコンとして設定！
-    layout="centered"
-)
-
-# ...（これ以降に既存のコードが続きます）...
 # ==========================================
 # 1. ページ設定とスマホ向け究極CSS (完全分離・Safari対応版)
 # ==========================================
