@@ -39,106 +39,105 @@ st.markdown("""
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5)) button { font-size: 10px !important; padding: 2px !important; }
     }
 
-    /* 縦の隙間を完全に消す */
+    /* 縦の隙間を消す */
     div[data-testid="stVerticalBlockBorderWrapper"] > div { gap: 0px !important; }
 
     /* =========================================
-       ★ 魔法のCSS: Streamlitのボタンを完全な四角い箱（セル）にする
+       ★ 究極の魔法: Streamlitの要素を強制的に固定Gridにする
        ========================================= */
-    /* 6列のブロックをCSS Gridで強制的にテーブル化 */
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
+    /* ヘッダー行（ボタンを含まない6列） */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)):not(:has(button)) {
         display: grid !important;
-        grid-template-columns: 24px repeat(5, 1fr) !important; /* 時限列は24px固定、残りは均等割り */
-        gap: 0 !important;
+        grid-template-columns: 20px repeat(5, 1fr) !important;
+        gap: 3px !important;
         width: 100% !important;
-        border-top: 1px solid #e0e0e0;
+        margin-bottom: 2px !important;
+    }
+
+    /* データ行（ボタンを含む6列）-> 高さを完全に固定！ */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)):has(button) {
+        display: grid !important;
+        grid-template-columns: 20px repeat(5, 1fr) !important;
+        gap: 3px !important;
+        width: 100% !important;
+        height: 62px !important; /* ★ここが最大のポイント：縦に伸びない！ */
+        min-height: 62px !important;
+        max-height: 62px !important;
+        margin-bottom: 3px !important;
     }
     
-    /* 各セル（カラム）の設定 */
+    /* 各列のラッパーのリセット */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] {
         width: 100% !important;
+        height: 100% !important;
         flex: none !important;
         padding: 0 !important;
-        border-right: 1px solid #f0f0f0; /* 薄い実線で区切る */
-        border-bottom: 1px solid #f0f0f0; 
-        min-height: 70px; /* セルの高さを少し確保 */
         display: flex;
-        align-items: stretch;
-        justify-content: stretch;
-    }
-    
-    /* 1列目（時限の数字）の背景色と線 */
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child {
-        border-left: 1px solid #e0e0e0;
-        border-right: 1px solid #e0e0e0;
-        background-color: #fafafa;
-    }
-    /* 金曜日の右側の線 */
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:last-child {
-        border-right: 1px solid #e0e0e0;
+        align-items: center;
+        justify-content: center;
     }
 
     /* =========================================
-       ★ セルの中のボタンデザイン（余白ゼロ・完全塗りつぶし）
+       ★ ボタン（セル）のデザイン
        ========================================= */
-    /* Streamlitが勝手に作る透明な箱（ラッパー）を100%に広げる */
+    /* Streamlit特有の透明な箱を100%に広げる */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) div.stButton {
         width: 100% !important;
         height: 100% !important;
-        display: flex !important;
-        align-items: stretch !important;
-        justify-content: stretch !important;
         margin: 0 !important;
         padding: 0 !important;
     }
 
-    /* ボタン本体の設定 */
+    /* ボタン本体 */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
         width: 100% !important;
-        height: 100% !important;
-        min-height: 70px !important;
+        height: 100% !important; /* 親の62pxに完全に合わせる */
         border: none !important;
-        border-radius: 0 !important; /* 角丸を消して完全に箱の隅まで塗る */
-        background-color: transparent !important;
+        border-radius: 6px !important; /* 美しい角丸 */
         padding: 2px !important; 
-        font-size: 10px !important; /* 5文字入る絶妙なサイズ */
-        font-weight: 700 !important;
-        letter-spacing: -0.5px !important; /* 文字間を詰める */
-        word-break: break-all !important; /* 枠の端で強制的に折り返す */
-        line-height: 1.15 !important;
-        white-space: pre-wrap !important;
         margin: 0 !important;
         box-shadow: none !important;
+        overflow: hidden !important; /* はみ出した要素を隠す */
+    }
+
+    /* ボタンの中のテキスト（長すぎる場合は自動で...にする） */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button p {
+        font-size: 9px !important;
+        font-weight: 700 !important;
+        line-height: 1.15 !important;
+        margin: 0 !important;
+        white-space: normal !important;
+        display: -webkit-box !important;
+        -webkit-line-clamp: 4 !important; /* 最大4行まで表示 */
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
     }
 
     /* 登録済みのコマ（青いセル） */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] {
         background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important;
         color: #1a365d !important;
-        /* 余白と影を完全に消し去る */
-        margin: 0 !important; 
-        width: 100% !important;
-        height: 100% !important;
-        box-shadow: none !important; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important; 
     }
 
     /* 空きコマ（＋マーク） */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="secondary"] {
-        color: #d0d0d0 !important;
-        font-size: 14px !important;
+        background-color: transparent !important;
+        border: 1.5px dashed #ccc !important;
+        color: #ccc !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="secondary"] p {
+        font-size: 14px !important; /* ＋マークだけ大きく */
     }
 
-    /* タップ時のへこみアニメーション（少し控えめに） */
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button:active { transform: scale(0.97) !important; }
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button:active { transform: scale(0.95) !important; }
 
     @media (prefers-color-scheme: dark) {
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) { border-top: 1px solid #444; }
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] { border-color: #444; }
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child { background-color: #222; }
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%) !important; color: #fff !important; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="secondary"] { border-color: #555 !important; color: #555 !important; }
     }
 
-    /* 通常のボタン設定（ナビゲーションなどはそのまま維持） */
+    /* 通常のボタン設定（ナビゲーション等はそのまま維持） */
     div.stButton > button:not(div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button) {
         border-radius: 10px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
         font-weight: 600 !important; padding: 6px 4px !important; min-height: 44px !important;
@@ -406,7 +405,7 @@ st.divider()
 # ==========================================
 
 # ------------------------------------------
-# 画面1: マイ時間割 (究極のCSS Grid Table版)
+# 画面1: マイ時間割 (完全固定 Grid Table版)
 # ------------------------------------------
 if st.session_state.current_page == "tt":
     if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
@@ -421,24 +420,23 @@ if st.session_state.current_page == "tt":
 
         days = ["月", "火", "水", "木", "金"]
         
-        # ヘッダー行
+        # ヘッダー行（CSSセレクタで捕まえるため必ず6列作る）
         cols = st.columns(6)
-        cols[0].markdown("") 
+        cols[0].empty() 
         for i, d in enumerate(days): 
-            cols[i+1].markdown(f"<div style='text-align:center; font-weight:bold; color:#666; font-size: 11px; padding-top: 5px;'>{d}</div>", unsafe_allow_html=True)
+            cols[i+1].markdown(f"<div style='text-align:center; font-weight:bold; color:#666; font-size: 12px; padding-top: 5px;'>{d}</div>", unsafe_allow_html=True)
             
         # データ行
         for p in range(1, 7):
             cols = st.columns(6)
-            cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#999; font-size: 11px; height: 100%; display: flex; align-items: center; justify-content: center;'>{p}</div>", unsafe_allow_html=True)
+            cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#999; font-size: 11px;'>{p}</div>", unsafe_allow_html=True)
             
             for i, d in enumerate(days):
                 with cols[i+1]:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 教員名を非表示にし、授業名のみを長め（12文字）に取得
-                        label = course['授業名'][:12]
-                        
+                        # 授業名のみを渡し、CSSのWebkit Clampで美しく切り捨てる
+                        label = course['授業名'] 
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
                             st.rerun()
@@ -620,20 +618,24 @@ elif st.session_state.current_page == "public":
             st.write(f"👤 **{selected_user}** ({target_dept} / {target_gender}) さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             
             days = ["月", "火", "水", "木", "金"]
-            html_str = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;"><tr><th style="width: 20px;"></th>'
-            for d in days: html_str += f'<th style="color: #666; font-size: 11px; padding: 4px 0; border-bottom: 2px solid #ddd; text-align:center;">{d}</th>'
-            html_str += '</tr>'
+            
+            # みんなの時間割も統一して完全Gridに
+            cols = st.columns(6)
+            cols[0].empty()
+            for i, d in enumerate(days): 
+                cols[i+1].markdown(f"<div style='text-align:center; font-weight:bold; color:#666; font-size: 12px; padding-top: 5px;'>{d}</div>", unsafe_allow_html=True)
+                
             for p in range(1, 7):
-                html_str += f'<tr><td style="color: #999; font-weight: bold; font-size: 11px; text-align: right; padding-right: 4px;">{p}</td>'
-                for d in days:
-                    course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
-                    if course:
-                        safe_name = html.escape(course['授業名'][:15])
-                        html_str += f'<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"><div style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2px;"><div style="font-size: 8px; font-weight: bold; line-height: 1.1; text-align: center; color: #1a365d;">{safe_name}</div></div></td>'
-                    else: html_str += '<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"></td>'
-                html_str += '</tr>'
-            html_str += '</table>'
-            st.markdown(html_str, unsafe_allow_html=True)
+                cols = st.columns(6)
+                cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#999; font-size: 11px;'>{p}</div>", unsafe_allow_html=True)
+                for i, d in enumerate(days):
+                    with cols[i+1]:
+                        course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
+                        if course:
+                            # タップできない表示専用のボタン（UX統一のため）
+                            st.button(course['授業名'], key=f"pub_{d}_{p}", type="primary", use_container_width=True)
+                        else:
+                            st.button("　", key=f"pub_empty_{d}_{p}", type="secondary", use_container_width=True, disabled=True)
 
 # ------------------------------------------
 # 画面5: マイページ
