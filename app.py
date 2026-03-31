@@ -658,73 +658,104 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
 # ------------------------------------------
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
-    query = st.text_input("キーワード (授業名・教員・コード)")
+    query = st.text_input("キーワード (授業名・教員)")
     s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"])
     col_d, col_p = st.columns(2)
     s_day = col_d.selectbox("曜日", ["すべて", "月", "火", "水", "木", "金"])
     s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"])
 
+    # ==========================================
+    # ★ 1. 独自ラベル検索のUIを追加
+    # ==========================================
+    # ※ここに検索の選択肢に出したいラベル（タグ）を自由に設定してください
+    available_labels = ["必修", "選択", "オンライン", "対面", "語学", "ゼミ"]
+    selected_labels = st.multiselect("🏷️ ラベルで絞り込み", available_labels, placeholder="ラベルを選択してください")
+
     res = df.copy()
-    # 空欄(NaN)エラー防止のために na=False を追加しています
     if s_sem != "すべて": res = res[res['学期'].str.contains(s_sem, na=False)]
     if s_day != "すべて": res = res[res['曜日'].str.contains(s_day, na=False)]
     if s_per != "すべて": res = res[res['時限'].astype(str).str.contains(s_per, na=False)]
     
     # ==========================================
-    # ★ ここから検索エンジンのアップデート部分 ★
+    # ★ 2. 4桁の授業コードを使ったラベル絞り込み処理
+    # ==========================================
+    if selected_labels:
+        # 【設定】4桁の授業コードと、それに付与するラベルの紐付けデータ
+        # 左側に4桁の授業コード、右側にラベルのリストを記述します
+        course_label_data = {
+            "FS00": ["必修", "対面"],
+            "FS01": ["選択", "オンライン"],
+            "FO17": ["語学", "対面"],
+            # ... 必要に応じてデータを追加
+        }
+        
+        # 選択されたラベルを「どれか1つでも」持っている4桁コードを抽出（OR検索）
+        target_codes = [
+            code for code, labels in course_label_data.items() 
+            if any(l in selected_labels for l in labels)
+        ]
+        
+        # CSVの「授業コード」列が、抽出したtarget_codesの中に含まれる行だけを残す
+        res = res[res['授業コード'].isin(target_codes)]
+    # ==========================================
+
+    # ==========================================
+    # ★ 3. キーワードの曖昧検索（AND検索）
     # ==========================================
     if query:
-        # 全角スペースを半角に変換し、空白で区切って複数キーワードに対応（AND検索）
         query_normalized = query.replace("　", " ").strip()
         keywords = query_normalized.split()
         
         for kw in keywords:
-            # シラバス特化：語尾が「学」「論」などの場合は削ってヒット率を上げる
             if len(kw) >= 3 and kw.endswith(("学", "論", "I", "II", "Ⅰ", "Ⅱ")):
                 search_kw = kw[:-1]
             else:
                 search_kw = kw
                 
-            # 大文字小文字を区別せず、授業名・教員・コードのどれかに含まれていればOK
             mask = (
                 res['授業名'].fillna('').astype(str).str.contains(search_kw, case=False) | 
-                res['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False) | 
-                res['授業コード'].fillna('').astype(str).str.contains(search_kw, case=False)
+                res['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False) 
             )
-            # 条件を満たしたものだけを次のループ（次のキーワード）に渡す
             res = res[mask]
-    # ==========================================
-    # ★ アップデート部分ここまで ★
-    # ==========================================
 
-    res = res.sort_values('優先度')
+    # --- 検索結果の表示（UI変更なし） ---
+    res = res.sort_values('優先度') if '優先度' in res.columns else res
     st.write(f"結果: **{len(res)}件** (50件まで)")
     
     for _, row in res.head(50).iterrows():
         with st.container(border=True):
-            t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(row)])
+            t_str = " ".join([f"{d}{p}限" for d, p in get_slot_pairs(row)]) if "get_slot_pairs" in globals() else f"{row.get('曜日', '')}{row.get('時限', '')}限"
             st.write(f"**{row['授業名']}**")
             st.caption(f"コード: {row['授業コード']} | {row['学期']} | {t_str} | {row['担当教員']}")
             
-            # ★ ゲストと登録ユーザーで表示を分ける
             if st.session_state.is_guest:
                 st.markdown("<p style='font-size: 11px; color: #888; text-align: center; margin-bottom: 5px;'>👆 アカウント登録すると自分の時間割に追加できます</p>", unsafe_allow_html=True)
-                display_links(row.to_dict())
+                if "display_links" in globals(): display_links(row.to_dict())
             else:
                 c1, c2 = st.columns([1, 1])
                 active_sem = "春学期" if "春" in row['学期'] else "秋学期"
-                is_reg = row['授業コード'] in st.session_state.registered[active_sem]
+                
+                # エラー回避のための辞書アクセス
+                reg_dict = st.session_state.registered.get(active_sem, {})
+                is_reg = row['授業コード'] in reg_dict
+                
                 with c1:
                     if st.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}", use_container_width=True):
-                        toggle_register(active_sem, row.to_dict())
-                        save_and_rerun()
-                is_bk = row['授業コード'] in [b['授業コード'] for b in st.session_state.bookmarks]
+                        if "toggle_register" in globals(): toggle_register(active_sem, row.to_dict())
+                        if "save_and_rerun" in globals(): save_and_rerun()
+                
+                bk_list = [b.get('授業コード') for b in st.session_state.bookmarks] if isinstance(st.session_state.bookmarks, list) else []
+                is_bk = row['授業コード'] in bk_list
+                
                 with c2:
                     if st.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}", use_container_width=True):
-                        if not is_bk: st.session_state.bookmarks.append(row.to_dict())
-                        else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
-                        save_and_rerun()
-                display_links(row.to_dict())
+                        if not is_bk: 
+                            st.session_state.bookmarks.append(row.to_dict())
+                        else: 
+                            st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b.get('授業コード') != row['授業コード']]
+                        if "save_and_rerun" in globals(): save_and_rerun()
+                
+                if "display_links" in globals(): display_links(row.to_dict())
 # ------------------------------------------
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
