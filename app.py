@@ -328,13 +328,18 @@ if not st.session_state.logged_in:
     st.write("中央大学 商学部向け 時間割＆シラバス検索ツール")
     
     auth_mode = st.radio("メニュー", ["ログイン", "新規登録"], horizontal=True)
-    user_input = st.text_input("ユーザーネーム (公開されます)")
+    
+    # ★変更点1：プレースホルダーで「メアド禁止」を視覚的に伝える
+    user_input = st.text_input("ユーザーネーム (公開されます)", placeholder="例: shidai_taro (※@は使用不可)")
     pass_input = st.text_input("パスワード", type="password")
     
     if auth_mode == "新規登録":
         if st.button("登録してはじめる", type="primary", use_container_width=True):
             if not user_input or not pass_input:
                 st.error("入力してください")
+            # ★変更点2：新規登録時に @ が含まれていたら弾く
+            elif "@" in user_input:
+                st.error("⚠️ エラー：ユーザーネームに「@」は使用できません。メールアドレスではなく、好きな名前を入力してください。")
             else:
                 users = load_users()
                 if user_input in users:
@@ -350,9 +355,8 @@ if not st.session_state.logged_in:
                     }
                     save_users(users)
                     
-                    # ★ 修正：登録成功後、1秒待ってから自動ログインさせる
                     st.success("✅ 登録完了！自動でログインします...")
-                    time.sleep(1) # 成功メッセージを読ませるための1秒
+                    time.sleep(1)
                     
                     st.session_state.logged_in = True
                     st.session_state.current_user = user_input
@@ -360,22 +364,28 @@ if not st.session_state.logged_in:
                     st.session_state.bookmarks = []
                     st.session_state.is_guest = False
                     st.session_state.manual_logout = False 
-                    st.session_state.pending_login_set = user_input # クッキーにも保存
+                    st.session_state.pending_login_set = user_input
                     st.rerun()
     else:
         if st.button("ログイン", type="primary", use_container_width=True):
-            users = load_users()
-            if user_input in users and users[user_input]["password"] == hash_pass(pass_input):
-                st.session_state.logged_in = True
-                st.session_state.current_user = user_input
-                st.session_state.registered = users[user_input]["registered"]
-                st.session_state.bookmarks = users[user_input]["bookmarks"]
-                st.session_state.is_guest = False
-                st.session_state.manual_logout = False 
-                st.session_state.pending_login_set = user_input
-                st.rerun()
+            if not user_input or not pass_input:
+                st.error("入力してください")
+            # ★変更点3：ログイン時にも、間違えてメアドを入れた人に優しく教える
+            elif "@" in user_input:
+                st.error("⚠️ メールアドレスではなく、登録した「ユーザーネーム」を入力してください。")
             else:
-                st.error("⚠️ 間違っています")
+                users = load_users()
+                if user_input in users and users[user_input]["password"] == hash_pass(pass_input):
+                    st.session_state.logged_in = True
+                    st.session_state.current_user = user_input
+                    st.session_state.registered = users[user_input]["registered"]
+                    st.session_state.bookmarks = users[user_input]["bookmarks"]
+                    st.session_state.is_guest = False
+                    st.session_state.manual_logout = False 
+                    st.session_state.pending_login_set = user_input
+                    st.rerun()
+                else:
+                    st.error("⚠️ ユーザーネームかパスワードが間違っています")
 
     # ★ 追加：ゲストログインボタン
     st.markdown("<div style='text-align: center; margin: 15px 0; color: #aaa; font-size: 12px; font-weight: bold;'>または</div>", unsafe_allow_html=True)
