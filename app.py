@@ -28,6 +28,14 @@ components.html(
 
 st.markdown("""
 <style>
+/* PCでもスマホでも、時間割(6列)とナビ(5列)は絶対に横並びにして折り返さない */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5):nth-last-child(1)),
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6):nth-last-child(1)) {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 2px !important;
+    }
+    
     .stApp { background-color: #f8f9fa; }
     @media (prefers-color-scheme: dark) { .stApp { background-color: #0e1117; } }
 
@@ -511,21 +519,23 @@ if st.session_state.current_page == "tt":
                 st.write(f"**{row['授業名']}**")
                 st.caption(f"コード: {row['授業コード']} | 担当: {row['担当教員']} | 単位: {row['単位数']}")
                 
-                # ★修正：本登録と削除ボタンを横並びで配置、テキストを短縮
-                b1, b2 = st.columns(2)
+               # 比率指定で綺麗に並べ、withを使ってはみ出しを防ぐ
+                b1, b2 = st.columns([1, 1])
                 is_reg = row['授業コード'] in st.session_state.registered[semester]
                 
-                if b1.button("解除" if is_reg else "✅ 本登録", key=f"reg_{row['授業コード']}"):
-                    toggle_register(semester, row.to_dict())
-                    st.session_state.active_slot = None 
-                    save_and_rerun()
-                    
+                with b1:
+                    if st.button("解除" if is_reg else "✅ 本登録", key=f"reg_{row['授業コード']}", use_container_width=True):
+                        toggle_register(semester, row.to_dict())
+                        st.session_state.active_slot = None 
+                        save_and_rerun()
+                        
                 is_bk = row['授業コード'] in [bk['授業コード'] for bk in st.session_state.bookmarks]
-                if b2.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_{row['授業コード']}"):
-                    if not is_bk: st.session_state.bookmarks.append(row.to_dict())
-                    else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
-                    save_and_rerun()
-                    
+                with b2:
+                    if st.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_{row['授業コード']}", use_container_width=True):
+                        if not is_bk: st.session_state.bookmarks.append(row.to_dict())
+                        else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
+                        save_and_rerun()
+                        
                 display_links(row.to_dict())
 
         st.divider()
