@@ -200,6 +200,7 @@ if 'pending_logout' not in st.session_state: st.session_state.pending_logout = F
 if 'pending_login_set' not in st.session_state: st.session_state.pending_login_set = None
 if 'pending_rename_set' not in st.session_state: st.session_state.pending_rename_set = None
 if 'manual_logout' not in st.session_state: st.session_state.manual_logout = False
+if 'is_guest' not in st.session_state: st.session_state.is_guest = False
 
 # ==========================================
 # 3. データベース（JSON）とクッキー管理
@@ -272,17 +273,19 @@ def load_data():
 df = load_data()
 
 # ==========================================
-# 5. アカウント画面
+# 5. アカウント画面（自動ログイン ＆ ゲスト機能搭載）
 # ==========================================
 if not st.session_state.logged_in:
     cached_user = cookie_manager.get(cookie="current_user")
-    if cached_user and not st.session_state.manual_logout:
+    # ゲストユーザーはクッキーログインの対象外にする
+    if cached_user and not st.session_state.manual_logout and cached_user != "Guest":
         users = load_users()
         if cached_user in users:
             st.session_state.logged_in = True
             st.session_state.current_user = cached_user
             st.session_state.registered = users[cached_user]["registered"]
             st.session_state.bookmarks = users[cached_user]["bookmarks"]
+            st.session_state.is_guest = False
             st.rerun()
 
     st.title("🥐 C-krat")
@@ -310,7 +313,19 @@ if not st.session_state.logged_in:
                         "gender": "未設定"
                     }
                     save_users(users)
-                    st.success("✅ 登録完了！「ログイン」から入ってください。")
+                    
+                    # ★ 修正：登録成功後、1秒待ってから自動ログインさせる
+                    st.success("✅ 登録完了！自動でログインします...")
+                    time.sleep(1) # 成功メッセージを読ませるための1秒
+                    
+                    st.session_state.logged_in = True
+                    st.session_state.current_user = user_input
+                    st.session_state.registered = {"春学期": {}, "秋学期": {}}
+                    st.session_state.bookmarks = []
+                    st.session_state.is_guest = False
+                    st.session_state.manual_logout = False 
+                    st.session_state.pending_login_set = user_input # クッキーにも保存
+                    st.rerun()
     else:
         if st.button("ログイン", type="primary", use_container_width=True):
             users = load_users()
@@ -319,11 +334,22 @@ if not st.session_state.logged_in:
                 st.session_state.current_user = user_input
                 st.session_state.registered = users[user_input]["registered"]
                 st.session_state.bookmarks = users[user_input]["bookmarks"]
+                st.session_state.is_guest = False
                 st.session_state.manual_logout = False 
                 st.session_state.pending_login_set = user_input
                 st.rerun()
             else:
                 st.error("⚠️ 間違っています")
+
+    # ★ 追加：ゲストログインボタン
+    st.markdown("<div style='text-align: center; margin: 15px 0; color: #aaa; font-size: 12px; font-weight: bold;'>または</div>", unsafe_allow_html=True)
+    if st.button("👤 アカウントなしで使う (ゲスト)", use_container_width=True):
+        st.session_state.logged_in = True
+        st.session_state.current_user = "Guest"
+        st.session_state.is_guest = True
+        st.session_state.current_page = "search" # ゲストは時間割を持たないので検索画面スタート
+        st.rerun()
+        
     st.stop()
 
 # ==========================================
@@ -420,24 +446,43 @@ def render_image_download_button(semester, registered_data):
 
 
 # ==========================================
-# 7. ナビゲーションバー (美しい5列)
+# 7. ナビゲーションバー
 # ==========================================
-nav1, nav2, nav3, nav4, nav5 = st.columns(5)
-if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True, help="マイ時間割"):
-    st.session_state.current_page = "tt"
-    st.rerun()
-if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True, help="検索"):
-    st.session_state.current_page = "search"
-    st.rerun()
-if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True, help="候補"):
-    st.session_state.current_page = "bk"
-    st.rerun()
-if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True, help="みんなの時間割"):
-    st.session_state.current_page = "public"
-    st.rerun()
-if nav5.button("👤", type="primary" if st.session_state.current_page == "mypage" else "secondary", use_container_width=True, help="マイページ"):
-    st.session_state.current_page = "mypage"
-    st.rerun()
+if st.session_state.is_guest:
+    # ゲスト用：CSSのデザインを崩さないために5列作り、真ん中の3つだけを使うハック！
+    nav1, nav2, nav3, nav4, nav5 = st.columns(5)
+    with nav1: st.empty()
+    if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True, help="検索"):
+        st.session_state.current_page = "search"
+        st.rerun()
+    if nav3.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True, help="みんなの時間割"):
+        st.session_state.current_page = "public"
+        st.rerun()
+    if nav4.button("🚪", type="secondary", use_container_width=True, help="戻る"):
+        st.session_state.logged_in = False
+        st.session_state.is_guest = False
+        st.session_state.current_user = None
+        st.rerun()
+    with nav5: st.empty()
+else:
+    # 登録ユーザー用：フル機能の5列ナビゲーション
+    nav1, nav2, nav3, nav4, nav5 = st.columns(5)
+    if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True, help="マイ時間割"):
+        st.session_state.current_page = "tt"
+        st.rerun()
+    if nav2.button("🔍", type="primary" if st.session_state.current_page == "search" else "secondary", use_container_width=True, help="検索"):
+        st.session_state.current_page = "search"
+        st.rerun()
+    if nav3.button("⭐", type="primary" if st.session_state.current_page == "bk" else "secondary", use_container_width=True, help="候補"):
+        st.session_state.current_page = "bk"
+        st.rerun()
+    if nav4.button("🌍", type="primary" if st.session_state.current_page == "public" else "secondary", use_container_width=True, help="みんなの時間割"):
+        st.session_state.current_page = "public"
+        st.rerun()
+    if nav5.button("👤", type="primary" if st.session_state.current_page == "mypage" else "secondary", use_container_width=True, help="マイページ"):
+        st.session_state.current_page = "mypage"
+        st.rerun()
+
 st.divider()
 
 # ==========================================
@@ -447,7 +492,7 @@ st.divider()
 # ------------------------------------------
 # 画面1: マイ時間割
 # ------------------------------------------
-if st.session_state.current_page == "tt":
+if st.session_state.current_page == "tt" and not st.session_state.is_guest:
     if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
         
     if st.session_state.active_slot is None:
@@ -460,13 +505,13 @@ if st.session_state.current_page == "tt":
 
         days = ["月", "火", "水", "木", "金"]
         
-        # ヘッダー行（必ず6列）
+        # ヘッダー行
         cols = st.columns(6)
         cols[0].markdown("") 
         for i, d in enumerate(days): 
             cols[i+1].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
             
-        # データ行（1〜6限）
+        # データ行
         for p in range(1, 7):
             cols = st.columns(6)
             cols[0].markdown(f"<div class='tt-time'>{p}</div>", unsafe_allow_html=True)
@@ -475,7 +520,6 @@ if st.session_state.current_page == "tt":
                 with cols[i+1]:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 教員名非表示・授業名のみ
                         label = course['授業名'][:11]
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
@@ -519,16 +563,14 @@ if st.session_state.current_page == "tt":
                 st.write(f"**{row['授業名']}**")
                 st.caption(f"コード: {row['授業コード']} | 担当: {row['担当教員']} | 単位: {row['単位数']}")
                 
-               # 比率指定で綺麗に並べ、withを使ってはみ出しを防ぐ
+                # ここは登録ユーザーしか見ないので制限なし
                 b1, b2 = st.columns([1, 1])
                 is_reg = row['授業コード'] in st.session_state.registered[semester]
-                
                 with b1:
                     if st.button("解除" if is_reg else "✅ 本登録", key=f"reg_{row['授業コード']}", use_container_width=True):
                         toggle_register(semester, row.to_dict())
                         st.session_state.active_slot = None 
                         save_and_rerun()
-                        
                 is_bk = row['授業コード'] in [bk['授業コード'] for bk in st.session_state.bookmarks]
                 with b2:
                     if st.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_{row['授業コード']}", use_container_width=True):
@@ -543,8 +585,7 @@ if st.session_state.current_page == "tt":
             with st.form(f"custom_course_{d}_{p}"):
                 c_name = st.text_input("授業名（必須）")
                 c_teacher = st.text_input("担当教員")
-                # 初期値を整数の1にし、1刻み(step=1)、最小値1〜最大値10に制限する
-                c_credits = st.number_input("単位数", min_value=1, max_value=10, value=1, step=1)
+                c_credits = st.number_input("単位数", min_value=1, max_value=10, value=2, step=1)
                 if st.form_submit_button("✅ このコマに登録"):
                     if not c_name.strip(): st.error("入力してください")
                     else:
@@ -556,7 +597,7 @@ if st.session_state.current_page == "tt":
                         save_and_rerun()
 
 # ------------------------------------------
-# 画面2: 検索画面
+# 画面2: 検索画面 (ゲスト制限あり)
 # ------------------------------------------
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
@@ -581,31 +622,31 @@ elif st.session_state.current_page == "search":
             st.write(f"**{row['授業名']}**")
             st.caption(f"コード: {row['授業コード']} | {row['学期']} | {t_str} | {row['担当教員']}")
             
-            # ... (上の授業名やコードの記述はそのまま) ...
-            
-            c1, c2 = st.columns([1, 1]) # 1:1の比率で綺麗に並べる
-            active_sem = "春学期" if "春" in row['学期'] else "秋学期"
-            is_reg = row['授業コード'] in st.session_state.registered[active_sem]
-            
-            with c1:
-                if st.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}", use_container_width=True):
-                    toggle_register(active_sem, row.to_dict())
-                    save_and_rerun()
-                    
-            is_bk = row['授業コード'] in [b['授業コード'] for b in st.session_state.bookmarks]
-            with c2:
-                if st.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}", use_container_width=True):
-                    if not is_bk: st.session_state.bookmarks.append(row.to_dict())
-                    else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
-                    save_and_rerun()
-                    
-            display_links(row.to_dict())
-            
+            # ★ ゲストと登録ユーザーで表示を分ける
+            if st.session_state.is_guest:
+                st.markdown("<p style='font-size: 11px; color: #888; text-align: center; margin-bottom: 5px;'>👆 アカウント登録すると自分の時間割に追加できます</p>", unsafe_allow_html=True)
+                display_links(row.to_dict())
+            else:
+                c1, c2 = st.columns([1, 1])
+                active_sem = "春学期" if "春" in row['学期'] else "秋学期"
+                is_reg = row['授業コード'] in st.session_state.registered[active_sem]
+                with c1:
+                    if st.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}", use_container_width=True):
+                        toggle_register(active_sem, row.to_dict())
+                        save_and_rerun()
+                is_bk = row['授業コード'] in [b['授業コード'] for b in st.session_state.bookmarks]
+                with c2:
+                    if st.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}", use_container_width=True):
+                        if not is_bk: st.session_state.bookmarks.append(row.to_dict())
+                        else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
+                        save_and_rerun()
+                display_links(row.to_dict())
+
 # ------------------------------------------
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
-elif st.session_state.current_page == "bk":
-    st.subheader("⭐ 保存した授業")
+elif st.session_state.current_page == "bk" and not st.session_state.is_guest:
+    st.subheader("⭐ 保存した授業 (候補)")
     if not st.session_state.bookmarks: st.info("検索画面から⭐を押して保存してください。")
         
     for b in st.session_state.bookmarks:
@@ -615,28 +656,23 @@ elif st.session_state.current_page == "bk":
             display_code = "手動入力" if b['授業コード'].startswith("MY_") else b['授業コード']
             st.caption(f"コード: {display_code} | {b['学期']} | {t_str} | {b['担当教員']}")
             
-            # ★修正：本登録と削除ボタンを横並びで配置し、文字を短縮
-            # 同じく比率指定と with ブロックでボタンを整える
             c1, c2 = st.columns([1, 1])
             active_sem = "春学期" if "春" in b['学期'] else "秋学期"
             is_reg = b['授業コード'] in st.session_state.registered[active_sem]
-            
             with c1:
                 if st.button("解除" if is_reg else "✅ 本登録", key=f"bk_reg_{b['授業コード']}", use_container_width=True):
                     toggle_register(active_sem, b)
                     save_and_rerun()
-                    
             with c2:
                 if st.button("🗑️ 削除", key=f"bk_del_{b['授業コード']}", use_container_width=True):
                     st.session_state.bookmarks = [x for x in st.session_state.bookmarks if x['授業コード'] != b['授業コード']]
                     if is_reg: del st.session_state.registered[active_sem][b['授業コード']]
                     save_and_rerun()
                     
-            if not b['授業コード'].startswith("MY_"): 
-                display_links(b)
+            if not b['授業コード'].startswith("MY_"): display_links(b)
 
 # ------------------------------------------
-# 画面4: みんなの時間割 (公開タイムライン)
+# 画面4: みんなの時間割 (公開タイムライン・ゲスト制限あり)
 # ------------------------------------------
 elif st.session_state.current_page == "public":
     st.subheader("🌍 みんなの時間割")
@@ -644,7 +680,7 @@ elif st.session_state.current_page == "public":
     
     users = load_users()
     my_id = st.session_state.current_user
-    public_users = [u for u in users.keys() if u != my_id]
+    public_users = [u for u in users.keys() if u != my_id and u != "Guest"]
     
     if not public_users:
         st.info("まだ他のユーザーがいません。")
@@ -656,9 +692,6 @@ elif st.session_state.current_page == "public":
             
         current_selection = st.session_state.public_selected_user
         is_expanded = (current_selection == "選択してください...")
-        
-        # ★ 究極のハック：タイトルを動的に変える！
-        # タイトルが変わることでStreamlitが「新しい要素」と認識し、確実に閉じてくれます。
         expander_title = "👤 ユーザーを選択（タップで開く）" if is_expanded else f"👤 現在表示中: {current_selection}（タップして変更）"
         
         with st.expander(expander_title, expanded=is_expanded):
@@ -679,15 +712,20 @@ elif st.session_state.current_page == "public":
             with c_head1: 
                 p_sem = st.selectbox("表示する学期", ["春学期", "秋学期"])
             with c_head2:
-                has_liked = my_id in likes_list
-                like_btn_text = f"❤️ {len(likes_list)}" if has_liked else f"🤍 いいね ({len(likes_list)})"
-                if st.button(like_btn_text, use_container_width=True):
-                    if has_liked: 
-                        target_data['likes'].remove(my_id)
-                    else: 
-                        target_data['likes'].append(my_id)
-                    save_users(users)
-                    st.rerun()
+                # ★ ゲスト用：いいねボタンを押せないようにする
+                if st.session_state.is_guest:
+                    st.button(f"🤍 いいね ({len(likes_list)})", use_container_width=True, disabled=True)
+                    st.markdown("<p style='font-size: 8px; color: #888; text-align: center; margin-top:-10px;'>※登録ユーザー限定</p>", unsafe_allow_html=True)
+                else:
+                    has_liked = my_id in likes_list
+                    like_btn_text = f"❤️ {len(likes_list)}" if has_liked else f"🤍 いいね ({len(likes_list)})"
+                    if st.button(like_btn_text, use_container_width=True):
+                        if has_liked: 
+                            target_data['likes'].remove(my_id)
+                        else: 
+                            target_data['likes'].append(my_id)
+                        save_users(users)
+                        st.rerun()
 
             st.write(f"👤 **{selected_user}** ({target_dept} / {target_gender}) さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             
@@ -709,10 +747,11 @@ elif st.session_state.current_page == "public":
                 html_str += '</tr>'
             html_str += '</table>'
             st.markdown(html_str, unsafe_allow_html=True)
+
 # ------------------------------------------
 # 画面5: マイページ
 # ------------------------------------------
-elif st.session_state.current_page == "mypage":
+elif st.session_state.current_page == "mypage" and not st.session_state.is_guest:
     st.subheader("👤 マイページ & 設定")
     
     users = load_users()
