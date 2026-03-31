@@ -330,7 +330,7 @@ if not st.session_state.logged_in:
     auth_mode = st.radio("メニュー", ["ログイン", "新規登録"], horizontal=True)
     
     # ★変更点1：プレースホルダーで「メアド禁止」を視覚的に伝える
-    user_input = st.text_input("ユーザーネーム (公開されます)", placeholder="例: shidai_taro (※@は使用不可)")
+    user_input = st.text_input("ユーザーネーム (公開されます)", placeholder="例: lethe (※@は使用不可)")
     pass_input = st.text_input("パスワード", type="password")
     
     if auth_mode == "新規登録":
