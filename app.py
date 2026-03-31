@@ -735,6 +735,10 @@ elif st.session_state.current_page == "public":
     st.subheader("🌍 みんなの時間割")
     st.write("他のユーザーが組んだ時間割を見て、参考にしましょう。")
     
+    nexus_url = "https://www.notion.so/NEXUS-403-c7b0ee978dbd82d78ec18129d3e704cb"
+    st.link_button("👁️ 製作者によるリアルな評価（NEXUS-403）を見る", nexus_url, type="secondary")
+    st.divider()
+    
     users = load_users()
     my_id = st.session_state.current_user
     public_users = [u for u in users.keys() if u != my_id and u != "Guest"]
