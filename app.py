@@ -10,11 +10,10 @@ import html
 import extra_streamlit_components as stx
 
 # ==========================================
-# 1. ページ設定とスマホ向け究極CSS
+# 1. ページ設定とスマホ向け究極CSS (CSS Grid Hack)
 # ==========================================
 st.set_page_config(page_title="C-krat", layout="centered", initial_sidebar_state="collapsed")
 
-# ★修正点: スマホの手動ズーム（PCビュー）を廃止し、デバイスネイティブ幅にしてCSSで制御する
 components.html(
     """
     <script>
@@ -34,96 +33,101 @@ st.markdown("""
 
     /* スマホ画面を広く使うためヘッダーを隠す */
     header { visibility: hidden; height: 0px !important; }
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-        max-width: 100% !important;
+    
+    @media screen and (max-width: 768px) {
+        .block-container { padding: 0.5rem 0.2rem !important; max-width: 100% !important; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5)) button { font-size: 10px !important; padding: 2px !important; }
     }
 
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        padding: 1px !important; gap: 1px !important;
-        background-color: transparent !important; border: none !important;
+    /* 縦の隙間を完全に消す */
+    div[data-testid="stVerticalBlockBorderWrapper"] > div { gap: 0px !important; }
+
+    /* =========================================
+       ★ 魔法のCSS: Streamlitのボタンを完全なHTMLテーブルに変換する
+       ========================================= */
+    /* 6列のブロックをCSS Gridで強制的にテーブル化 */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
+        display: grid !important;
+        grid-template-columns: 24px repeat(5, 1fr) !important; /* 時限列は24px固定、残りは均等割り */
+        gap: 0 !important;
+        width: 100% !important;
+        border-top: 1px solid #e0e0e0; /* テーブル上部の線 */
     }
     
-    .tt-header {
-        text-align: center; font-size: 13px; font-weight: 700;
-        margin-bottom: 4px; color: #555;
-    }
-    @media (prefers-color-scheme: dark) { .tt-header { color: #ccc; } }
-
-    /* 時間割グリッドをネイティブアプリ風に (PC/タブレット用) */
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
-        flex-direction: row !important; flex-wrap: nowrap !important; gap: 4px !important; width: 100% !important;
-    }
+    /* 各セル（カラム）の設定 */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] {
-        width: auto !important; flex: 1 1 0% !important; min-width: 0 !important; padding: 0 !important;
+        width: 100% !important;
+        flex: none !important;
+        padding: 0 !important;
+        border-right: 1px dashed #e0e0e0;
+        border-bottom: 1px dashed #e0e0e0;
+        min-height: 65px; /* セルの高さ */
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
     }
+    
+    /* 1列目（時限の数字）の背景色と線 */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child {
-        flex: 0.25 1 0% !important; display: flex; align-items: center; justify-content: center;
+        border-left: 1px solid #e0e0e0;
+        border-right: 1px solid #e0e0e0;
+        background-color: #fafafa;
     }
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
-        width: 100% !important; height: 75px !important; padding: 2px !important; border-radius: 8px !important;
-        font-size: 9.5px !important; line-height: 1.2 !important; word-break: break-word !important;
-        white-space: normal !important; transition: transform 0.1s !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button:active { transform: scale(0.95) !important; }
-
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="secondary"] {
-        background-color: #ffffff !important; border: 1.5px dashed #d0d0d0 !important; color: #b0b0b0 !important; font-weight: normal !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] {
-        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important; border: none !important;
-        color: #1a365d !important; font-weight: 700 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-    }
-
-    @media (prefers-color-scheme: dark) {
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="secondary"] { background-color: transparent !important; border: 1.5px dashed #555 !important; }
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%) !important; color: #fff !important; }
-    }
-
-    div.stButton > button:not(div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button) {
-        border-radius: 10px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
-        font-weight: 600 !important; padding: 6px 4px !important; min-height: 44px !important;
+    /* 金曜日の右側の線 */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:last-child {
+        border-right: 1px solid #e0e0e0;
     }
 
     /* =========================================
-       ★ スマホ（縦画面）完全1画面フィットへの道（StreamlitのCSSを完全に殺す）
+       ★ セルの中のボタンデザイン
        ========================================= */
-    @media screen and (max-width: 768px) {
-        .block-container { padding-left: 0.1rem !important; padding-right: 0.1rem !important; }
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 65px !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background-color: transparent !important;
+        padding: 2px !important;
+        font-size: 8px !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+        white-space: pre-wrap !important; /* 改行を許可 */
+        margin: 0 !important;
+        box-shadow: none !important;
+    }
 
-        /* ナビゲーションバーの文字を極小に */
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5)) button {
-             font-size: 10px !important; padding: 2px !important;
-        }
+    /* 登録済みのコマ（青いセル） */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] {
+        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important;
+        color: #1a365d !important;
+        border-radius: 4px !important; /* セルの中で少し丸みを持たせる */
+        margin: 2px !important; /* セルの枠線を見せるための隙間 */
+        width: calc(100% - 4px) !important;
+        height: calc(100% - 4px) !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+    }
 
-        /* 6列グリッド（時間割本体）への強力な介入 */
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
-            flex-direction: row !important; flex-wrap: nowrap !important; gap: 1px !important; width: 100% !important;
-        }
-        
-        /* Streamlitがスマホ幅で st.column にかける `width: 100%` を完全に殺す */
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] {
-            width: auto !important; flex: none !important; min-width: 0 !important; padding: 0 !important;
-        }
+    /* 空きコマ（＋マーク） */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="secondary"] {
+        color: #d0d0d0 !important;
+        font-size: 14px !important;
+    }
 
-        /* 時限列（1列目）：10% */
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child {
-            width: 10% !important;
-        }
-        /* 月〜金列（2〜6列目）：18%（×5 = 90%） */
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:not(:first-child) {
-            width: 18% !important;
-        }
+    /* タップ時のへこみアニメーション */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button:active { transform: scale(0.95) !important; }
 
-        /* セル（ボタン）のサイズと文字を極小に（ペンマーク風） */
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
-            height: 55px !important; /* さらに低く */
-            font-size: 7.5px !important; /* 文字を極限まで小さく */
-            letter-spacing: -0.3px !important; /* 文字間を詰める */
-            padding: 1px !important;
-        }
-        .tt-header { font-size: 10px !important; }
+    @media (prefers-color-scheme: dark) {
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) { border-top: 1px solid #444; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"] { border-color: #444; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"]:first-child { background-color: #222; }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%) !important; color: #fff !important; }
+    }
+
+    /* 通常のボタン設定 */
+    div.stButton > button:not(div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button) {
+        border-radius: 10px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+        font-weight: 600 !important; padding: 6px 4px !important; min-height: 44px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -214,7 +218,7 @@ def load_data():
 df = load_data()
 
 # ==========================================
-# 5. アカウント画面（ログイン・登録）
+# 5. アカウント画面
 # ==========================================
 if not st.session_state.logged_in:
     cached_user = cookie_manager.get(cookie="current_user")
@@ -310,14 +314,11 @@ def display_links(course):
         if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
             st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
 
-# ★修正点: Viewportを変更したため、撮影時だけ幅をPC幅（1024px）に強制固定するように修正
 def render_image_download_button(semester, registered_data):
     days = ["月", "火", "水", "木", "金"]
-    # 撮影エリアの幅を1024pxに固定するCSSを追加
     html_str = '<div id="timetable-capture-area" style="background-color: #ffffff; padding: 15px; border-radius: 12px; font-family: \'Helvetica Neue\', Arial, \'Hiragino Kaku Gothic ProN\', \'Hiragino Sans\', Meiryo, sans-serif; position: absolute; top: -9999px; left: -9999px; width: 1024px;">'
     html_str += f'<div style="text-align: center; margin-bottom: 15px; font-weight: bold; color: #333; font-size: 24px; letter-spacing: 1px;"><span style="margin-right: 8px;">🥐</span>C-krat Timetable ({semester})</div>'
     html_str += '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;"><tr><th style="width: 30px;"></th>'
-    # 文字サイズを大きく調整（撮影用）
     for d in days: html_str += f'<th style="color: #666; font-size: 16px; padding: 8px 0; border-bottom: 2px solid #ddd;">{d}</th>'
     html_str += '</tr>'
     
@@ -326,7 +327,6 @@ def render_image_download_button(semester, registered_data):
         for d in days:
             course = next((c for c in registered_data.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
             if course:
-                # 授業名も長めに表示（撮影用）
                 safe_name = html.escape(course['授業名'][:19])
                 safe_teacher = html.escape(course['担当教員'].split()[0] if course['担当教員'] != "不明" else "")
                 html_str += f'<td style="border: 1px dashed #e0e0e0; height: 100px; padding: 4px;"><div style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border-radius: 10px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="font-size: 13px; font-weight: bold; line-height: 1.2; text-align: center; color: #1a365d;">{safe_name}</div><div style="font-size: 10px; color: #1a365d; margin-top:3px;">{safe_teacher}</div></div></td>'
@@ -350,13 +350,13 @@ def render_image_download_button(semester, registered_data):
             const doc = window.parent.document;
             const target = doc.getElementById('timetable-capture-area');
             if (target) {
-                target.style.position = 'static'; // 撮影時だけ元に戻す
+                target.style.position = 'static'; 
                 html2canvas(target, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
                     let link = doc.createElement('a');
                     link.download = 'Ckrat_Timetable.png';
                     link.href = canvas.toDataURL('image/png');
                     link.click();
-                    target.style.position = 'absolute'; // 撮影後に隠す
+                    target.style.position = 'absolute'; 
                 });
             } else { alert("画像の生成に失敗しました。"); }
         }
@@ -392,7 +392,7 @@ st.divider()
 # ==========================================
 
 # ------------------------------------------
-# 画面1: マイ時間割
+# 画面1: マイ時間割 (究極のCSS Grid Table版)
 # ------------------------------------------
 if st.session_state.current_page == "tt":
     if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
@@ -406,22 +406,29 @@ if st.session_state.current_page == "tt":
             st.write(f"✅ **{get_total_credits(st.session_state.registered[semester]):.1f} 単位**")
 
         days = ["月", "火", "水", "木", "金"]
-        cols = st.columns([0.5, 1, 1, 1, 1, 1])
-        for i, d in enumerate([""] + days): 
-            cols[i].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
+        
+        # ★ ヘッダー行（CSS Gridによりテーブルのヘッダーに変換されます）
+        cols = st.columns(6)
+        cols[0].markdown("") # 左上の空白
+        for i, d in enumerate(days): 
+            cols[i+1].markdown(f"<div style='text-align:center; font-weight:bold; color:#666; font-size: 11px; padding-top: 5px;'>{d}</div>", unsafe_allow_html=True)
             
+        # ★ データ行（各セルがボタンになっています）
         for p in range(1, 7):
-            cols = st.columns([0.5, 1, 1, 1, 1, 1])
-            # 文字サイズをスマホに合わせて微調整
-            cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#777; font-size: 13px;'>{p}</div>", unsafe_allow_html=True)
+            cols = st.columns(6)
+            # 時限の数字
+            cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#999; font-size: 11px; height: 100%; display: flex; align-items: center; justify-content: center;'>{p}</div>", unsafe_allow_html=True)
+            
             for i, d in enumerate(days):
                 with cols[i+1]:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # ★修正点: 究極のスマホフィットのため、授業名はさらに削り（10文字）、文字サイズをCSSで極小にする
-                        raw_name = course['授業名'][:10]
-                        safe_name = html.escape(raw_name)
-                        if st.button(safe_name, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
+                        # 授業名と教員名を取得し、改行で繋ぐ
+                        name = course['授業名'][:8] # セル幅に合わせて文字数を短く
+                        teacher = course['担当教員'].split()[0] if course['担当教員'] != "不明" else ""
+                        label = f"{name}\n{teacher}" if teacher else name
+                        
+                        if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
                             st.rerun()
                     else:
@@ -432,6 +439,7 @@ if st.session_state.current_page == "tt":
         render_image_download_button(semester, st.session_state.registered)
 
     else:
+        # 詳細・編集画面
         d = st.session_state.active_slot['day']
         p = st.session_state.active_slot['period']
         course = st.session_state.active_slot['course']
@@ -601,10 +609,8 @@ elif st.session_state.current_page == "public":
 
             st.write(f"👤 **{selected_user}** ({target_dept} / {target_gender}) さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             
-            # 🌍画面ではタップ編集が不要なので、表示用のHTMLテーブルを使う
             days = ["月", "火", "水", "木", "金"]
             html_str = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;"><tr><th style="width: 20px;"></th>'
-            # 文字サイズをスマホに合わせて微調整（🌍画面用）
             for d in days: html_str += f'<th style="color: #666; font-size: 11px; padding: 4px 0; border-bottom: 2px solid #ddd; text-align:center;">{d}</th>'
             html_str += '</tr>'
             for p in range(1, 7):
@@ -612,7 +618,6 @@ elif st.session_state.current_page == "public":
                 for d in days:
                     course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 授業名も削る（🌍画面用）
                         safe_name = html.escape(course['授業名'][:15])
                         html_str += f'<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"><div style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2px;"><div style="font-size: 8px; font-weight: bold; line-height: 1.1; text-align: center; color: #1a365d;">{safe_name}</div></div></td>'
                     else: html_str += '<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"></td>'
