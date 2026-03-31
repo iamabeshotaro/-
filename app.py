@@ -48,13 +48,17 @@ st.markdown("""
     /* 縦の隙間を完全に消す */
     div[data-testid="stVerticalBlockBorderWrapper"] > div { gap: 0px !important; }
 
+    /* =========================================
+       ★ 究極のハック: Streamlitのレスポンシブ縦積みを完全に殺すCSS
+       ========================================= */
     @media screen and (max-width: 768px) {
-        /* スマホ幅では横並び要素を絶対に縦に積まない (究極ハック) */
-        div[data-testid="stHorizontalBlock"] {
+        /* ナビゲーション(5列)と時間割(6列)だけを横並びに強制し、他(検索画面など)には影響させない */
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5):nth-last-child(1)),
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6):nth-last-child(1)) {
             display: flex !important;
-            flex-wrap: nowrap !important;
-            gap: 2px !important;
-            margin-bottom: 4px !important;
+            flex-wrap: nowrap !important; 
+            gap: 1px !important; 
+            margin-bottom: 2px !important;
         }
     }
 
@@ -349,6 +353,7 @@ def get_total_credits(semester_data):
 
 # ★修正：シラバスとみんキャンリンクを縦並び（2行）にする
 def display_links(course):
+    # 横並び(st.columns)をやめて、純粋に縦に2つ並べる
     if course.get('詳細URL') and course['詳細URL'] != "不明": 
         st.link_button("📄 シラバス", course['詳細URL'], use_container_width=True)
     if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
@@ -565,22 +570,26 @@ elif st.session_state.current_page == "search":
             st.write(f"**{row['授業名']}**")
             st.caption(f"コード: {row['授業コード']} | {row['学期']} | {t_str} | {row['担当教員']}")
             
-            c1, c2 = st.columns(2)
+            # ... (上の授業名やコードの記述はそのまま) ...
+            
+            c1, c2 = st.columns([1, 1]) # 1:1の比率で綺麗に並べる
             active_sem = "春学期" if "春" in row['学期'] else "秋学期"
             is_reg = row['授業コード'] in st.session_state.registered[active_sem]
             
-            if c1.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}"):
-                toggle_register(active_sem, row.to_dict())
-                save_and_rerun()
-                
+            with c1:
+                if st.button("解除" if is_reg else "✅ 本登録", key=f"src_reg_{row['授業コード']}", use_container_width=True):
+                    toggle_register(active_sem, row.to_dict())
+                    save_and_rerun()
+                    
             is_bk = row['授業コード'] in [b['授業コード'] for b in st.session_state.bookmarks]
-            if c2.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}"):
-                if not is_bk: st.session_state.bookmarks.append(row.to_dict())
-                else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
-                save_and_rerun()
-                
+            with c2:
+                if st.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}", use_container_width=True):
+                    if not is_bk: st.session_state.bookmarks.append(row.to_dict())
+                    else: st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
+                    save_and_rerun()
+                    
             display_links(row.to_dict())
-
+            
 # ------------------------------------------
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
