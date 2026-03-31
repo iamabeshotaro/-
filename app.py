@@ -735,27 +735,6 @@ elif st.session_state.current_page == "public":
     st.subheader("🌍 みんなの時間割")
     st.write("他のユーザーが組んだ時間割を見て、参考にしましょう。")
     
-# ==========================================
-    # ★ NEXUS-403への誘導バナー（アクセス制限付き）
-    # ==========================================
-    if not st.session_state.is_guest:
-        # 正規ユーザー（アカウント登録者）の場合：リンクを表示
-        nexus_url = "https://www.notion.so/NEXUS-403-c7b0ee978dbd82d78ec18129d3e704cb"
-        st.markdown(
-            f"""
-            <a href="{nexus_url}" target="_blank" style="text-decoration: none;">
-                <div style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 15px; border-radius: 8px; border-left: 5px solid #ff4b4b; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: 0.3s;">
-                    <h4 style="color: #ff4b4b; margin: 0 0 5px 0; font-size: 16px;">👁️NEXUS-403</h4>
-                    <p style="color: #e0e0e0; margin: 0; font-size: 12px;">製作者による授業評価データベースはこちら</p>
-                </div>
-            </a>
-            """, 
-            unsafe_allow_html=True
-        )
-    else:
-        # ゲストユーザーの場合：鍵付きのメッセージを表示して登録を促す
-        st.info("🔒 **【登録者限定コンテンツ】**\n\nユーザー登録された方は製作者による授業評価データベース(NEXUS-403）にもアクセスいただけます。")
-    # ==========================================
     
     users = load_users()
     my_id = st.session_state.current_user
@@ -827,6 +806,27 @@ elif st.session_state.current_page == "public":
             html_str += '</table>'
             st.markdown(html_str, unsafe_allow_html=True)
 
+# ==========================================
+    # ★ NEXUS-403への誘導バナー（アクセス制限付き）
+    # ==========================================
+    if not st.session_state.is_guest:
+        # 正規ユーザー（アカウント登録者）の場合：リンクを表示
+        nexus_url = "https://www.notion.so/NEXUS-403-c7b0ee978dbd82d78ec18129d3e704cb"
+        st.markdown(
+            f"""
+            <a href="{nexus_url}" target="_blank" style="text-decoration: none;">
+                <div style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 15px; border-radius: 8px; border-left: 5px solid #ff4b4b; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: 0.3s;">
+                    <h4 style="color: #ff4b4b; margin: 0 0 5px 0; font-size: 16px;">👁️NEXUS-403</h4>
+                    <p style="color: #e0e0e0; margin: 0; font-size: 12px;">製作者による授業評価データベースはこちら</p>
+                </div>
+            </a>
+            """, 
+            unsafe_allow_html=True
+        )
+    else:
+        # ゲストユーザーの場合：鍵付きのメッセージを表示して登録を促す
+        st.info("🔒 **【登録者限定コンテンツ】**\n\nユーザー登録された方は製作者による授業評価データベース(NEXUS-403）にもアクセスいただけます。")
+    # ==========================================
 # ------------------------------------------
 # 画面5: マイページ
 # ------------------------------------------
