@@ -543,7 +543,8 @@ if st.session_state.current_page == "tt":
             with st.form(f"custom_course_{d}_{p}"):
                 c_name = st.text_input("授業名（必須）")
                 c_teacher = st.text_input("担当教員")
-                c_credits = st.number_input("単位数", value=2.0)
+                # 初期値を整数の2にし、1刻み(step=1)、最小値1〜最大値10に制限する
+                c_credits = st.number_input("単位数", min_value=1, max_value=10, value=2, step=1)
                 if st.form_submit_button("✅ このコマに登録"):
                     if not c_name.strip(): st.error("入力してください")
                     else:
