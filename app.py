@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components  # ← ★この1行が抜けていました！
 import pandas as pd
 import re
 import json
@@ -286,7 +287,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==========================================
-# 6. 共通関数 (display_links を修正)
+# 6. 共通関数
 # ==========================================
 def get_slot_pairs(course):
     d_list = str(course['曜日']).split()
@@ -318,9 +319,8 @@ def get_total_credits(semester_data):
         if match: total += float(match.group(1))
     return total
 
-# 修正：シラバスとみんキャンリンクを縦並び（2行）にする
+# ★修正：シラバスとみんキャンリンクを縦並び（2行）にする
 def display_links(course):
-    # l1, l2 = st.columns(2) を削除
     if course.get('詳細URL') and course['詳細URL'] != "不明": 
         st.link_button("📄 シラバス", course['詳細URL'], use_container_width=True)
     if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
@@ -377,7 +377,6 @@ def render_image_download_button(semester, registered_data):
         height=60
     )
 
-
 # ==========================================
 # 7. ナビゲーション
 # ==========================================
@@ -404,7 +403,7 @@ st.divider()
 # ==========================================
 
 # ------------------------------------------
-# 画面1: マイ時間割 (究極のCSS Grid Table版)
+# 画面1: マイ時間割
 # ------------------------------------------
 if st.session_state.current_page == "tt":
     if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
@@ -434,9 +433,7 @@ if st.session_state.current_page == "tt":
                 with cols[i+1]:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 授業名のみ長めに取得
                         label = course['授業名'][:11]
-                        
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
                             st.rerun()
@@ -478,6 +475,8 @@ if st.session_state.current_page == "tt":
             with st.container(border=True):
                 st.write(f"**{row['授業名']}**")
                 st.caption(f"コード: {row['授業コード']} | 担当: {row['担当教員']} | 単位: {row['単位数']}")
+                
+                # ★修正：本登録と候補ボタンを横並びで配置
                 b1, b2 = st.columns(2)
                 is_reg = row['授業コード'] in st.session_state.registered[semester]
                 
@@ -566,6 +565,7 @@ elif st.session_state.current_page == "bk":
             display_code = "手動入力" if b['授業コード'].startswith("MY_") else b['授業コード']
             st.caption(f"コード: {display_code} | {b['学期']} | {t_str} | {b['担当教員']}")
             
+            # ★修正：本登録と削除ボタンを横並びで配置し、文字を短縮
             c1, c2 = st.columns(2)
             active_sem = "春学期" if "春" in b['学期'] else "秋学期"
             is_reg = b['授業コード'] in st.session_state.registered[active_sem]
@@ -574,7 +574,6 @@ elif st.session_state.current_page == "bk":
                 toggle_register(active_sem, b)
                 save_and_rerun()
                 
-            # 修正：削除ボタンのテキストから授業名を削除し、短くする
             if c2.button("🗑️ 削除", key=f"bk_del_{b['授業コード']}"):
                 st.session_state.bookmarks = [x for x in st.session_state.bookmarks if x['授業コード'] != b['授業コード']]
                 if is_reg: del st.session_state.registered[active_sem][b['授業コード']]
