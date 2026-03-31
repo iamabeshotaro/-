@@ -51,7 +51,7 @@ st.markdown("""
         grid-template-columns: 24px repeat(5, 1fr) !important; /* 時限列は24px固定、残りは均等割り */
         gap: 0 !important;
         width: 100% !important;
-        border-top: 1px solid #e0e0e0; /* テーブル上部の線 */
+        border-top: 1px solid #e0e0e0;
     }
     
     /* 各セル（カラム）の設定 */
@@ -64,7 +64,7 @@ st.markdown("""
         min-height: 65px; /* セルの高さ */
         display: flex;
         align-items: stretch;
-        justify-content: center;
+        justify-content: stretch; /* 中身をいっぱいに広げる */
     }
     
     /* 1列目（時限の数字）の背景色と線 */
@@ -79,8 +79,20 @@ st.markdown("""
     }
 
     /* =========================================
-       ★ セルの中のボタンデザイン
+       ★ セルの中のボタンデザイン（余白ゼロ設定）
        ========================================= */
+    /* Streamlitが勝手に作る透明な箱（ラッパー）を100%に広げる */
+    div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) div.stButton {
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* ボタン本体の設定 */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
         width: 100% !important;
         height: 100% !important;
@@ -88,11 +100,11 @@ st.markdown("""
         border: none !important;
         border-radius: 0 !important;
         background-color: transparent !important;
-        padding: 2px !important;
-        font-size: 8px !important;
+        padding: 1px !important; /* 隙間を極限まで減らす */
+        font-size: 8px !important; /* 文字を小さく */
         font-weight: 700 !important;
-        line-height: 1.2 !important;
-        white-space: pre-wrap !important; /* 改行を許可 */
+        line-height: 1.15 !important;
+        white-space: pre-wrap !important;
         margin: 0 !important;
         box-shadow: none !important;
     }
@@ -101,10 +113,10 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] {
         background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important;
         color: #1a365d !important;
-        border-radius: 4px !important; /* セルの中で少し丸みを持たせる */
-        margin: 2px !important; /* セルの枠線を見せるための隙間 */
-        width: calc(100% - 4px) !important;
-        height: calc(100% - 4px) !important;
+        border-radius: 4px !important; /* セルの中でほんの少しだけ丸みを持たせる */
+        margin: 1px !important; /* 境界線を見せるためのわずかな1pxの隙間 */
+        width: calc(100% - 2px) !important;
+        height: calc(100% - 2px) !important;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
     }
 
@@ -114,7 +126,6 @@ st.markdown("""
         font-size: 14px !important;
     }
 
-    /* タップ時のへこみアニメーション */
     div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button:active { transform: scale(0.95) !important; }
 
     @media (prefers-color-scheme: dark) {
@@ -124,7 +135,6 @@ st.markdown("""
         div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button[kind="primary"] { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%) !important; color: #fff !important; }
     }
 
-    /* 通常のボタン設定 */
     div.stButton > button:not(div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button) {
         border-radius: 10px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
         font-weight: 600 !important; padding: 6px 4px !important; min-height: 44px !important;
@@ -407,26 +417,23 @@ if st.session_state.current_page == "tt":
 
         days = ["月", "火", "水", "木", "金"]
         
-        # ★ ヘッダー行（CSS Gridによりテーブルのヘッダーに変換されます）
+        # ヘッダー行
         cols = st.columns(6)
-        cols[0].markdown("") # 左上の空白
+        cols[0].markdown("") 
         for i, d in enumerate(days): 
             cols[i+1].markdown(f"<div style='text-align:center; font-weight:bold; color:#666; font-size: 11px; padding-top: 5px;'>{d}</div>", unsafe_allow_html=True)
             
-        # ★ データ行（各セルがボタンになっています）
+        # データ行
         for p in range(1, 7):
             cols = st.columns(6)
-            # 時限の数字
             cols[0].markdown(f"<div style='text-align:center; font-weight:bold; color:#999; font-size: 11px; height: 100%; display: flex; align-items: center; justify-content: center;'>{p}</div>", unsafe_allow_html=True)
             
             for i, d in enumerate(days):
                 with cols[i+1]:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 授業名と教員名を取得し、改行で繋ぐ
-                        name = course['授業名'][:8] # セル幅に合わせて文字数を短く
-                        teacher = course['担当教員'].split()[0] if course['担当教員'] != "不明" else ""
-                        label = f"{name}\n{teacher}" if teacher else name
+                        # 教員名を非表示にし、授業名のみを短く表示
+                        label = course['授業名'][:11]
                         
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
@@ -439,7 +446,6 @@ if st.session_state.current_page == "tt":
         render_image_download_button(semester, st.session_state.registered)
 
     else:
-        # 詳細・編集画面
         d = st.session_state.active_slot['day']
         p = st.session_state.active_slot['period']
         course = st.session_state.active_slot['course']
