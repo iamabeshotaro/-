@@ -10,7 +10,7 @@ import html
 import extra_streamlit_components as stx
 
 # ==========================================
-# 1. ページ設定とスマホ向け究極CSS (レスポンシブ完全ハック)
+# 1. ページ設定とスマホ向け究極CSS (完全分離版)
 # ==========================================
 st.set_page_config(page_title="C-krat", layout="centered", initial_sidebar_state="collapsed")
 
@@ -35,117 +35,145 @@ st.markdown("""
     header { visibility: hidden; height: 0px !important; }
     
     @media screen and (max-width: 768px) {
-        .block-container { padding: 0.5rem 0.2rem !important; max-width: 100% !important; }
-        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(5)) button { font-size: 10px !important; padding: 2px !important; }
+        /* ドロップダウンが上に開くのを防ぐため、画面下部に広大な余白を確保 */
+        .block-container { 
+            padding-top: 0.5rem !important; 
+            padding-bottom: 250px !important; 
+            padding-left: 0.2rem !important; 
+            padding-right: 0.2rem !important; 
+            max-width: 100% !important; 
+        }
     }
 
     /* 縦の隙間を完全に消す */
     div[data-testid="stVerticalBlockBorderWrapper"] > div { gap: 0px !important; }
 
-    /* =========================================
-       ★ 究極のハック: Streamlitのレスポンシブ縦積みを完全に殺すCSS
-       ========================================= */
     @media screen and (max-width: 768px) {
-        /* スマホ幅でも st.columns の親を flex nowrap に強制 */
+        /* スマホ幅では横並び要素を絶対に縦に積まない */
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
-            flex-wrap: nowrap !important; /* 絶対に縦に積まない！ */
-            gap: 1px !important; /* 隙間を極限まで詰める */
-            margin-bottom: 2px !important;
-        }
-
-        /* 時限列（1列目）：10% */
-        div[data-testid="stHorizontalBlock"] > div:nth-child(1) {
-            width: 10% !important; 
-            flex: 0 0 10% !important; 
-            min-width: 10% !important;
-            padding: 0 !important;
-            display: flex; align-items: center; justify-content: center;
-        }
-        
-        /* 月〜金列（2〜6列目）：18%（×5 = 90%） */
-        div[data-testid="stHorizontalBlock"] > div:nth-child(2),
-        div[data-testid="stHorizontalBlock"] > div:nth-child(3),
-        div[data-testid="stHorizontalBlock"] > div:nth-child(4),
-        div[data-testid="stHorizontalBlock"] > div:nth-child(5),
-        div[data-testid="stHorizontalBlock"] > div:nth-child(6) {
-            width: 18% !important; 
-            flex: 0 0 18% !important; 
-            min-width: 18% !important;
-            padding: 0 !important;
+            flex-wrap: nowrap !important;
+            gap: 2px !important;
+            margin-bottom: 4px !important;
         }
     }
 
     /* =========================================
-       ★ セル（ボタン）の完全固定＆鮮やかデザイン
+       ★ 5列：ナビゲーションバー（メニュー）の美しいデザイン
        ========================================= */
-    /* Streamlit特有の透明な箱を100%に広げる */
-    div[data-testid="stHorizontalBlock"] div.stButton {
+    /* 5列のブロックを特定 */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5),
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div {
+        width: 20% !important; 
+        min-width: 20% !important;
+        padding: 0 2px !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) div.stButton {
+        width: 100% !important; margin: 0 !important; padding: 0 !important;
+    }
+
+    /* ナビゲーションのボタン本体（アプリのタブバー風） */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button,
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button {
         width: 100% !important;
-        height: 100% !important;
+        height: 48px !important;
+        border: none !important;
+        border-radius: 12px !important; /* 丸くて可愛い形に */
+        background-color: #ffffff !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important; /* ふんわり浮かせる */
+        padding: 0 !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button p,
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button p {
+        font-size: 20px !important; /* 絵文字を大きく */
         margin: 0 !important;
+    }
+
+    /* 選択中（アクティブ）のタブ */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button[kind="primary"],
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button[kind="primary"] {
+        background-color: #e0f2fe !important; /* 薄い水色 */
+        box-shadow: inset 0 0 0 1.5px #56CCF2 !important; /* 枠線を光らせる */
+    }
+
+    /* =========================================
+       ★ 6列：時間割グリッドの完全固定＆鮮やかデザイン
+       ========================================= */
+    /* 1列目（時限：10%） */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) {
+        width: 10% !important; flex: 0 0 10% !important; min-width: 10% !important;
+        padding: 0 !important; display: flex; align-items: center; justify-content: center;
+    }
+    /* 2〜6列目（月〜金：18%） */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div {
+        width: 18% !important; flex: 0 0 18% !important; min-width: 18% !important;
         padding: 0 !important;
     }
 
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div div.stButton {
+        width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important;
+    }
+
     /* 時間割セル（ボタン）の本体 */
-    div[data-testid="stHorizontalBlock"] > div:not(:first-child) button {
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button {
         width: 100% !important;
-        height: 75px !important; /* ★75pxで完全固定！絶対縦に伸びない */
+        height: 75px !important; /* 高さを完全固定 */
         border: none !important;
-        border-radius: 8px !important; /* Penmark風の丸み */
+        border-radius: 8px !important; /* 角丸 */
         padding: 2px !important; 
         margin: 0 !important;
         box-shadow: none !important;
     }
 
-    /* セル内のテキスト（1行5文字、自動詰め、教員名非表示） */
-    div[data-testid="stHorizontalBlock"] > div:not(:first-child) button p {
-        font-size: 10px !important; /* 5文字が入る絶妙なサイズ */
+    /* セル内のテキスト（1行5文字） */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button p {
+        font-size: 10px !important; 
         font-weight: 700 !important;
         line-height: 1.15 !important;
-        letter-spacing: -0.5px !important; /* 文字間を自動で詰める */
+        letter-spacing: -0.5px !important;
         margin: 0 !important;
         white-space: normal !important;
-        word-break: break-all !important; /* 箱の端で強制折り返し */
+        word-break: break-all !important;
         display: -webkit-box !important;
-        -webkit-line-clamp: 4 !important; /* 最大4行まで表示 */
+        -webkit-line-clamp: 4 !important;
         -webkit-box-orient: vertical !important;
         overflow: hidden !important;
     }
 
-    /* 登録済みのコマ（鮮やか青紫グラデーション復活！） */
-    div[data-testid="stHorizontalBlock"] > div:not(:first-child) button[kind="primary"] {
-        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%) !important; /* 画像2枚目風の若者向けカラー */
-        color: #1a365d !important;
+    /* 登録済みのコマ（鮮やか青紫グラデーション） */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="primary"] {
+        background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%) !important;
+        color: #ffffff !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; 
     }
 
-    /* 空きコマ（清潔感のある点線枠） */
-    div[data-testid="stHorizontalBlock"] > div:not(:first-child) button[kind="secondary"] {
+    /* 空きコマ（点線枠） */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="secondary"] {
         background-color: transparent !important;
         border: 1px dashed #d0d0d0 !important;
         color: #d0d0d0 !important;
     }
-    div[data-testid="stHorizontalBlock"] > div:not(:first-child) button[kind="secondary"] p {
-        font-size: 14px !important; /* ＋マークだけ大きく */
+    div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="secondary"] p {
+        font-size: 14px !important; 
     }
 
     /* タップアニメーション */
-    div[data-testid="stHorizontalBlock"] button:active { 
-        transform: scale(0.95) !important; 
+    div[data-testid="stHorizontalBlock"] button:active { transform: scale(0.95) !important; }
+
+    /* ダークモード対応 */
+    @media (prefers-color-scheme: dark) {
+        div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button, div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button { background-color: #222 !important; box-shadow: none !important; }
+        div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) button[kind="primary"], div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(5) ~ div button[kind="primary"] { background-color: #333 !important; box-shadow: inset 0 0 0 1.5px #56CCF2 !important; }
+        div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="primary"] { background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%) !important; }
+        div[data-testid="stHorizontalBlock"] > div:nth-child(1):nth-last-child(6) ~ div button[kind="secondary"] { border-color: #555 !important; color: #555 !important; }
     }
 
     /* 時限ラベルの文字デザイン */
     .tt-header { text-align: center; font-size: 11px; font-weight: bold; color: #666; padding-bottom: 2px; border-bottom: 2px solid #eee; margin-bottom: 2px; }
     .tt-time { text-align: center; font-size: 11px; font-weight: bold; color: #aaa; margin-top: 20px; }
 
-    @media (prefers-color-scheme: dark) {
-        .tt-header { color: #ccc; border-color: #444; }
-        div[data-testid="stHorizontalBlock"] > div:not(:first-child) button[kind="primary"] { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%) !important; color: #fff !important; }
-        div[data-testid="stHorizontalBlock"] > div:not(:first-child) button[kind="secondary"] { border-color: #555 !important; color: #555 !important; }
-    }
-
-    /* 通常のボタン（ログインなど）はそのままの大きさ */
+    /* その他の汎用ボタン */
     div.stButton > button:not(div[data-testid="stHorizontalBlock"] button) {
         border-radius: 10px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
         font-weight: 600 !important; padding: 6px 4px !important; min-height: 44px !important;
@@ -335,6 +363,7 @@ def display_links(course):
         if course.get('みんキャン検索LINK') and course['みんキャン検索LINK'] != "不明": 
             st.link_button("🗣️ みんキャン", course['みんキャン検索LINK'], use_container_width=True)
 
+# ダウンロード画像と「みんなの時間割」も鮮やかなグラデーションに統一
 def render_image_download_button(semester, registered_data):
     days = ["月", "火", "水", "木", "金"]
     html_str = '<div id="timetable-capture-area" style="background-color: #ffffff; padding: 15px; border-radius: 12px; font-family: \'Helvetica Neue\', Arial, \'Hiragino Kaku Gothic ProN\', \'Hiragino Sans\', Meiryo, sans-serif; position: absolute; top: -9999px; left: -9999px; width: 1024px;">'
@@ -348,9 +377,9 @@ def render_image_download_button(semester, registered_data):
         for d in days:
             course = next((c for c in registered_data.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
             if course:
-                # 文字を詰めるハックをダウンロード画像にも適用
-                safe_name = html.escape(course['授業名'])
-                html_str += f'<td style="border: 1px dashed #e0e0e0; height: 100px; padding: 2px;"><div style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border-radius: 8px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="font-size: 13px; font-weight: bold; line-height: 1.2; text-align: center; color: #1a365d; letter-spacing: -0.5px; word-break: break-all;">{safe_name}</div></div></td>'
+                safe_name = html.escape(course['授業名'][:19])
+                safe_teacher = html.escape(course['担当教員'].split()[0] if course['担当教員'] != "不明" else "")
+                html_str += f'<td style="border: 1px dashed #e0e0e0; height: 100px; padding: 4px;"><div style="background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%); border-radius: 10px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="font-size: 14px; font-weight: bold; line-height: 1.2; text-align: center; color: #ffffff; letter-spacing: -0.5px; word-break: break-all;">{safe_name}</div><div style="font-size: 11px; color: #ffffff; margin-top:3px; opacity: 0.9;">{safe_teacher}</div></div></td>'
             else:
                 html_str += '<td style="border: 1px dashed #e0e0e0; height: 100px; padding: 4px;"></td>'
         html_str += '</tr>'
@@ -388,7 +417,7 @@ def render_image_download_button(semester, registered_data):
 
 
 # ==========================================
-# 7. ナビゲーション
+# 7. ナビゲーションバー (美しい5列)
 # ==========================================
 nav1, nav2, nav3, nav4, nav5 = st.columns(5)
 if nav1.button("🗓️", type="primary" if st.session_state.current_page == "tt" else "secondary", use_container_width=True, help="マイ時間割"):
@@ -413,7 +442,7 @@ st.divider()
 # ==========================================
 
 # ------------------------------------------
-# 画面1: マイ時間割 (Safari完全対応 固定Grid版)
+# 画面1: マイ時間割
 # ------------------------------------------
 if st.session_state.current_page == "tt":
     if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
@@ -428,7 +457,7 @@ if st.session_state.current_page == "tt":
 
         days = ["月", "火", "水", "木", "金"]
         
-        # ヘッダー行
+        # ヘッダー行（必ず6列）
         cols = st.columns(6)
         cols[0].markdown("") 
         for i, d in enumerate(days): 
@@ -443,7 +472,7 @@ if st.session_state.current_page == "tt":
                 with cols[i+1]:
                     course = next((c for c in st.session_state.registered.get(semester, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
                     if course:
-                        # 教員名は表示せず、授業名のみを短く（11文字）表示してスッキリさせる
+                        # 教員名非表示・授業名のみ
                         label = course['授業名'][:11]
                         if st.button(label, key=f"cell_{d}_{p}", type="primary", use_container_width=True):
                             st.session_state.active_slot = {'day': d, 'period': p, 'course': course}
@@ -456,7 +485,6 @@ if st.session_state.current_page == "tt":
         render_image_download_button(semester, st.session_state.registered)
 
     else:
-        # 詳細・編集画面
         d = st.session_state.active_slot['day']
         p = st.session_state.active_slot['period']
         course = st.session_state.active_slot['course']
@@ -520,7 +548,7 @@ if st.session_state.current_page == "tt":
                         save_and_rerun()
 
 # ------------------------------------------
-# 画面2〜5 (検索・候補・みんなの時間割・マイページ) は構造同じ
+# 画面2: 検索画面
 # ------------------------------------------
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
@@ -561,6 +589,9 @@ elif st.session_state.current_page == "search":
                 
             display_links(row.to_dict())
 
+# ------------------------------------------
+# 画面3: 候補(ブックマーク)画面
+# ------------------------------------------
 elif st.session_state.current_page == "bk":
     st.subheader("⭐ 保存した授業 (候補)")
     if not st.session_state.bookmarks: st.info("検索画面から⭐を押して保存してください。")
@@ -587,6 +618,9 @@ elif st.session_state.current_page == "bk":
                 
             if not b['授業コード'].startswith("MY_"): display_links(b)
 
+# ------------------------------------------
+# 画面4: みんなの時間割 (公開タイムライン)
+# ------------------------------------------
 elif st.session_state.current_page == "public":
     st.subheader("🌍 みんなの時間割")
     st.write("他のユーザーが組んだ時間割を見て、参考にしましょう。")
@@ -621,24 +655,25 @@ elif st.session_state.current_page == "public":
             st.write(f"👤 **{selected_user}** ({target_dept} / {target_gender}) さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
             
             days = ["月", "火", "水", "木", "金"]
-            
-            cols = st.columns(6)
-            cols[0].empty()
-            for i, d in enumerate(days): 
-                cols[i+1].markdown(f"<div class='tt-header'>{d}</div>", unsafe_allow_html=True)
-                
+            html_str = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;"><tr><th style="width: 20px;"></th>'
+            for d in days: html_str += f'<th style="color: #666; font-size: 11px; padding: 4px 0; border-bottom: 2px solid #ddd; text-align:center;">{d}</th>'
+            html_str += '</tr>'
             for p in range(1, 7):
-                cols = st.columns(6)
-                cols[0].markdown(f"<div class='tt-time'>{p}</div>", unsafe_allow_html=True)
-                for i, d in enumerate(days):
-                    with cols[i+1]:
-                        course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
-                        if course:
-                            # タップできない表示専用のボタン
-                            st.button(course['授業名'], key=f"pub_{d}_{p}", type="primary", use_container_width=True)
-                        else:
-                            st.button("　", key=f"pub_empty_{d}_{p}", type="secondary", use_container_width=True, disabled=True)
+                html_str += f'<tr><td style="color: #999; font-weight: bold; font-size: 11px; text-align: right; padding-right: 4px;">{p}</td>'
+                for d in days:
+                    course = next((c for c in target_data['registered'].get(p_sem, {}).values() if (d, str(p)) in get_slot_pairs(c)), None)
+                    if course:
+                        # みんなの時間割も同じグラデーションに
+                        safe_name = html.escape(course['授業名'][:15])
+                        html_str += f'<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"><div style="background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%); border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2px;"><div style="font-size: 8px; font-weight: bold; line-height: 1.1; text-align: center; color: #ffffff;">{safe_name}</div></div></td>'
+                    else: html_str += '<td style="border: 1px dashed #e0e0e0; height: 60px; padding: 1px;"></td>'
+                html_str += '</tr>'
+            html_str += '</table>'
+            st.markdown(html_str, unsafe_allow_html=True)
 
+# ------------------------------------------
+# 画面5: マイページ
+# ------------------------------------------
 elif st.session_state.current_page == "mypage":
     st.subheader("👤 マイページ & 設定")
     
