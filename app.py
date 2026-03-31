@@ -685,8 +685,7 @@ elif st.session_state.current_page == "public":
                 html_str += '</tr>'
             html_str += '</table>'
             st.markdown(html_str, unsafe_allow_html=True)
-
-　　　　st.markdown("<div style='height: 300px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 300px;'></div>", unsafe_allow_html=True)
 # ------------------------------------------
 # 画面5: マイページ
 # ------------------------------------------
