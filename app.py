@@ -721,17 +721,12 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
 elif st.session_state.current_page == "search":
     st.subheader("🔍 授業検索")
     
-    # ==========================================
-    # ★ 変更点: 検索条件をメモリ（session_state）に保存する準備
-    # ==========================================
-    # 初めてこの画面を開いた時のデフォルト値を設定
     if "search_query" not in st.session_state: st.session_state.search_query = ""
     if "search_sem" not in st.session_state: st.session_state.search_sem = "春学期"
     if "search_day" not in st.session_state: st.session_state.search_day = "すべて"
     if "search_per" not in st.session_state: st.session_state.search_per = "すべて"
     if "search_labels" not in st.session_state: st.session_state.search_labels = []
 
-    # 各入力パーツに key="..." を設定することで、自動的に選択状態が保持されます
     query = st.text_input("キーワード (授業名・教員)", key="search_query")
     
     s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"], key="search_sem")
@@ -751,7 +746,7 @@ elif st.session_state.current_page == "search":
         "🏷️ カテゴリで絞り込み", 
         list(label_to_char.keys()), 
         placeholder="カテゴリを選択してください（複数可）",
-        key="search_labels"  # これで選んだカテゴリも消えなくなります
+        key="search_labels"
     )
 
     res = df.copy()
@@ -759,40 +754,35 @@ elif st.session_state.current_page == "search":
     if s_day != "すべて": res = res[res['曜日'].str.contains(s_day, na=False)]
     if s_per != "すべて": res = res[res['時限'].astype(str).str.contains(s_per, na=False)]
     
-    # ==========================================
-    # ★ 2. 授業コードの「2文字目」を使った絞り込み
-    # ==========================================
     if selected_labels:
-        # 選ばれたラベルに対応するアルファベット（例: "M", "O"）のリストを作る
         selected_chars = [label_to_char[l] for l in selected_labels]
-        
-        # 授業コードの「2文字目（インデックス1）」が、リストの中にあるものだけを残す
-        # ※ 空欄によるエラーを防ぐため .fillna('') を挟んでいます
         res = res[res['授業コード'].fillna('').astype(str).str[1].isin(selected_chars)]
 
-    # ==========================================
-    # ★ 3. キーワードの曖昧検索（「コード」を除外してノイズ削減）
-    # ==========================================
     if query:
         query_normalized = query.replace("　", " ").strip()
         keywords = query_normalized.split()
         
         for kw in keywords:
-            # 語尾カット処理（「学」「論」などを削る）
             if len(kw) >= 3 and kw.endswith(("学", "論", "I", "II", "Ⅰ", "Ⅱ")):
                 search_kw = kw[:-1]
             else:
                 search_kw = kw
                 
-            # 【変更点】検索対象を「授業名」と「担当教員」のみに絞りました
             mask = (
                 res['授業名'].fillna('').astype(str).str.contains(search_kw, case=False) | 
                 res['担当教員'].fillna('').astype(str).str.contains(search_kw, case=False)
             )
             res = res[mask]
 
-    # --- 検索結果の表示（UI変更なし） ---
-    res = res.sort_values('優先度') if '優先度' in res.columns else res
+    # ★ 修正: ブックマーク（候補）判定フラグを作り、それを最優先で上に持ってくる（降順ソート）
+    bk_codes = [b.get('授業コード') for b in st.session_state.bookmarks] if isinstance(st.session_state.bookmarks, list) else []
+    res['is_bk'] = res['授業コード'].isin(bk_codes)
+
+    if '優先度' in res.columns:
+        res = res.sort_values(by=['is_bk', '優先度'], ascending=[False, True])
+    else:
+        res = res.sort_values(by=['is_bk'], ascending=[False])
+
     st.write(f"結果: **{len(res)}件** (50件まで)")
     
     for _, row in res.head(50).iterrows():
@@ -816,9 +806,7 @@ elif st.session_state.current_page == "search":
                         if "toggle_register" in globals(): toggle_register(active_sem, row.to_dict())
                         if "save_and_rerun" in globals(): save_and_rerun()
                 
-                bk_list = [b.get('授業コード') for b in st.session_state.bookmarks] if isinstance(st.session_state.bookmarks, list) else []
-                is_bk = row['授業コード'] in bk_list
-                
+                is_bk = row['is_bk'] # 上で作ったフラグを利用
                 with c2:
                     if st.button("外す" if is_bk else "⭐ 候補へ", key=f"src_bk_{row['授業コード']}", use_container_width=True):
                         if not is_bk: 
@@ -829,7 +817,34 @@ elif st.session_state.current_page == "search":
                 
                 if "display_links" in globals(): display_links(row.to_dict())
 
-
+    # ==========================================
+    # ★ 追加: 画面右下に追従する「一番上に戻る」ボタン
+    # ==========================================
+    st.markdown(
+        """
+        <style>
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(100, 100, 100, 0.7);
+            color: white !important;
+            padding: 12px 14px;
+            border-radius: 50%;
+            text-decoration: none;
+            font-size: 20px;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: 0.3s;
+        }
+        .back-to-top:hover {
+            background-color: rgba(100, 100, 100, 1.0);
+        }
+        </style>
+        <a href="#" class="back-to-top" title="一番上へ戻る">⬆️</a>
+        """,
+        unsafe_allow_html=True
+    )
 # ------------------------------------------
 # 画面3: 候補(ブックマーク)画面
 # ------------------------------------------
