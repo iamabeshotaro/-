@@ -15,7 +15,7 @@ import hashlib
 # ==========================================
 # 1. ページ設定とスマホ向け究極CSS (完全分離・Safari対応版)
 # ==========================================
-st.set_page_config(page_title="C-krat", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="C-krat", page_icon="🥐", layout="centered", initial_sidebar_state="collapsed")
 
 components.html(
     """
