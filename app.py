@@ -550,13 +550,16 @@ st.divider()
 # 画面1: マイ時間割
 # ------------------------------------------
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
-    if 'current_semester' not in st.session_state: st.session_state.current_semester = "春学期"
+    
+    # ★ session_state に tt_sem（時間割用学期）が存在しなければ作成
+    if 'tt_sem' not in st.session_state: 
+        st.session_state.tt_sem = "春学期"
         
     if st.session_state.active_slot is None:
         col_h1, col_h2 = st.columns([3, 2])
         with col_h1:
-            semester = st.selectbox("学期", ["春学期", "秋学期"], index=0 if st.session_state.current_semester=="春学期" else 1, label_visibility="collapsed")
-            st.session_state.current_semester = semester
+            # ★ key="tt_sem" を指定することで、選んだ瞬間に保持＆リロードされる
+            semester = st.selectbox("学期", ["春学期", "秋学期"], key="tt_sem", label_visibility="collapsed")
         with col_h2: 
             st.write(f"✅ **{get_total_credits(st.session_state.registered[semester]):.1f} 単位**")
 
@@ -592,10 +595,13 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
         d = st.session_state.active_slot['day']
         p = st.session_state.active_slot['period']
         course = st.session_state.active_slot['course']
-        semester = st.session_state.current_semester
+        # ★ ここも保持されている tt_sem を使う
+        semester = st.session_state.tt_sem
 
         col_title, col_close = st.columns([4, 1])
         col_title.subheader(f"⚙️ {d}曜{p}限")
+        
+        # ★ 戻るボタンのロジック修正（active_slotを解除するだけ）
         if col_close.button("✖ 戻る", type="primary"):
             st.session_state.active_slot = None
             st.rerun()
@@ -652,7 +658,6 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                         })
                         st.session_state.active_slot = None
                         save_and_rerun()
-
 # ------------------------------------------
 # 画面2: 検索画面 (ゲスト制限あり)
 # ------------------------------------------
