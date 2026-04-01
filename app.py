@@ -390,12 +390,12 @@ if not st.session_state.logged_in:
             # ★変更点3：ログイン時にも、間違えてメアドを入れた人に優しく教える
             elif "@" in user_input:
                 st.error("⚠️ メールアドレスではなく、登録した「ユーザーネーム」を入力してください。")
-            users = load_users()
+            else:
+                users = load_users()
                 if user_input in users and users[user_input]["password"] == hash_pass(pass_input):
                     
                     # ★ 追加: ログインするたびに「新しい」トークンを発行して上書き（使い回し防止）
                     new_token = secrets.token_hex(32)
-                else:
                     users[user_input]["session_token"] = new_token
                     save_users(users)
                     
