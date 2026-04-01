@@ -268,16 +268,24 @@ def save_target_user(username, user_data):
         st.error(f"データベースの保存に失敗しました: {e}")
 
 def delete_target_user(username):
-    """特定のユーザーの行だけをピンポイントで削除する関数"""
+    """特定のユーザーの行だけをピンポイントで確実に削除する関数"""
     try:
         client = get_gspread_client()
         sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
         usernames = sheet.col_values(1)
+        
         if username in usernames:
             row_idx = usernames.index(username) + 1
-            sheet.delete_row(row_idx) # その人の行を丸ごと削除
+            
+            # gspreadのバージョンに合わせて、存在するコマンドを自動判定して実行！
+            if hasattr(sheet, "delete_rows"):
+                sheet.delete_rows(row_idx) # 最新バージョンの書き方
+            else:
+                sheet.delete_row(row_idx)  # 古いバージョンの書き方
+                
     except Exception as e:
-        st.error(f"データベースの削除に失敗しました: {e}")
+        # st.errorだとリロードで消えてしまうため、サーバーのログに確実に残す
+        print(f"アカウント削除に失敗しました: {e}")
 # ==========================================
 # ★ 修正: 強力なソルト付きパスワード暗号化機能
 # ==========================================
