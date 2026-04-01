@@ -326,12 +326,12 @@ df = load_data()
 # 5. アカウント画面（自動ログイン ＆ ゲスト機能搭載）
 # ==========================================
 if not st.session_state.logged_in:
-    # ★ 変更: クッキーから「セッショントークン」を取得
+    # ★ セキュリティ修正1: クッキーから「セッショントークン」を取得
     cached_token = cookie_manager.get(cookie="session_token")
     
     if cached_token and not st.session_state.manual_logout:
         users = load_users()
-        # ★ 変更: データベースの中から、トークンが一致するユーザーを探し出す
+        # データベースの中から、トークンが一致するユーザーを探し出す
         matched_user = None
         for uname, udata in users.items():
             if udata.get("session_token") == cached_token:
@@ -352,7 +352,6 @@ if not st.session_state.logged_in:
     
     auth_mode = st.radio("メニュー", ["ログイン", "新規登録"], horizontal=True)
     
-    # ★変更点1：プレースホルダーで「メアド禁止」を視覚的に伝える
     user_input = st.text_input("ユーザーネーム (公開されます)", placeholder="例: lethe (※@は使用不可)")
     pass_input = st.text_input("パスワード", type="password")
     
@@ -360,7 +359,6 @@ if not st.session_state.logged_in:
         if st.button("登録してはじめる", type="primary", use_container_width=True):
             if not user_input or not pass_input:
                 st.error("入力してください")
-            # ★変更点2：新規登録時に @ が含まれていたら弾く
             elif "@" in user_input:
                 st.error("⚠️ エラー：ユーザーネームに「@」は使用できません。メールアドレスではなく、好きな名前を入力してください。")
             else:
@@ -368,19 +366,21 @@ if not st.session_state.logged_in:
                 if user_input in users:
                     st.error("既に使用されています")
                 else:
-                    # ★ 追加: 新規登録時に64文字の超強力なランダム文字列を発行
+                    # ★ セキュリティ修正2: 新規登録時に64文字の超強力なランダム文字列を発行
                     new_token = secrets.token_hex(32)
                     
-                    users[user_input] = {
+                    new_user_data = {
                         "password": hash_pass(pass_input),
-                        "session_token": new_token, # ★ ここに追加！
+                        "session_token": new_token,
                         "registered": {"春学期": {}, "秋学期": {}},
                         "bookmarks": [],
                         "likes": [],
                         "department": "未設定",
                         "gender": "未設定"
                     }
-                    save_users(users)
+                    
+                    # ★ セキュリティ修正3: 全員分ではなく、自分の行だけをピンポイント保存（競合防止）
+                    save_target_user(user_input, new_user_data)
                     
                     st.success("✅ 登録完了！自動でログインします...")
                     time.sleep(1)
@@ -391,24 +391,24 @@ if not st.session_state.logged_in:
                     st.session_state.bookmarks = []
                     st.session_state.is_guest = False
                     st.session_state.manual_logout = False 
-                    # ★ 変更: ユーザー名ではなくトークンをクッキーに渡す
                     st.session_state.pending_login_set = new_token
                     st.rerun()
     else:
         if st.button("ログイン", type="primary", use_container_width=True):
             if not user_input or not pass_input:
                 st.error("入力してください")
-            # ★変更点3：ログイン時にも、間違えてメアドを入れた人に優しく教える
             elif "@" in user_input:
                 st.error("⚠️ メールアドレスではなく、登録した「ユーザーネーム」を入力してください。")
             else:
                 users = load_users()
                 if user_input in users and users[user_input]["password"] == hash_pass(pass_input):
                     
-                    # ★ 追加: ログインするたびに「新しい」トークンを発行して上書き（使い回し防止）
+                    # ★ セキュリティ修正4: ログインするたびに「新しい」トークンを発行して上書き（使い回し防止）
                     new_token = secrets.token_hex(32)
                     users[user_input]["session_token"] = new_token
-                    save_users(users)
+                    
+                    # ★ セキュリティ修正5: 自分の行だけをピンポイント保存
+                    save_target_user(user_input, users[user_input])
                     
                     st.session_state.logged_in = True
                     st.session_state.current_user = user_input
@@ -416,13 +416,12 @@ if not st.session_state.logged_in:
                     st.session_state.bookmarks = users[user_input].get("bookmarks", [])
                     st.session_state.is_guest = False
                     st.session_state.manual_logout = False 
-                    # ★ 変更: ユーザー名ではなくトークンをクッキーに渡す
                     st.session_state.pending_login_set = new_token
                     st.rerun()
                 else:
                     st.error("⚠️ ユーザーネームかパスワードが間違っています")
 
-    # ★ 追加：ゲストログインボタン
+    # ゲストログインボタン
     st.markdown("<div style='text-align: center; margin: 15px 0; color: #aaa; font-size: 12px; font-weight: bold;'>または</div>", unsafe_allow_html=True)
     if st.button("👤 アカウントなしで使う (ゲスト)", use_container_width=True):
         st.session_state.logged_in = True
@@ -531,9 +530,12 @@ def save_and_rerun():
         users = load_users()
         u_name = st.session_state.current_user
         if u_name in users:
-            users[u_name]['registered'] = st.session_state.registered
-            users[u_name]['bookmarks'] = st.session_state.bookmarks
-            save_users(users)
+            my_data = users[u_name]
+            my_data['registered'] = st.session_state.registered
+            my_data['bookmarks'] = st.session_state.bookmarks
+            # ★変更: 全員分ではなく、自分の行だけをピンポイント保存！
+            save_target_user(u_name, my_data)
+            
     # 最後に必ず画面をリロード（再描画）する
     st.rerun()
 
