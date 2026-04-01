@@ -278,8 +278,36 @@ def delete_target_user(username):
             sheet.delete_row(row_idx) # その人の行を丸ごと削除
     except Exception as e:
         st.error(f"データベースの削除に失敗しました: {e}")
-def hash_pass(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+# ==========================================
+# ★ 修正: 強力なソルト付きパスワード暗号化機能
+# ==========================================
+def hash_pass(password, salt=None):
+    """パスワードを強力に暗号化する関数（ソルトとストレッチングを使用）"""
+    if salt is None:
+        # ランダムな16文字の「ソルト（塩）」を生成
+        salt = secrets.token_hex(16)
+        
+    # pbkdf2_hmac: ハッカーが解読するのを激しく遅延させる強力な関数（10万回計算を繰り返す）
+    hashed = hashlib.pbkdf2_hmac(
+        'sha256', 
+        password.encode('utf-8'), 
+        salt.encode('utf-8'), 
+        100000
+    ).hexdigest()
+    
+    # ソルトとハッシュ化されたパスワードを「$」で繋いで保存する
+    return f"{salt}${hashed}"
+
+def verify_pass(password, stored_hash):
+    """入力されたパスワードが正しいか検証する関数"""
+    # 昔の単純なSHA256ハッシュ（$が含まれていない）の互換性維持（Shoのテストアカウント救済用）
+    if "$" not in stored_hash:
+        return hashlib.sha256(password.encode()).hexdigest() == stored_hash
+        
+    # 新しいソルト付きハッシュの検証
+    salt, _ = stored_hash.split("$")
+    # データベースに保存されているソルトを使って入力パスワードを暗号化し、一致するか確認
+    return hash_pass(password, salt) == stored_hash
 
 # --- クッキー管理 ---
 cookie_manager = stx.CookieManager()
@@ -401,7 +429,7 @@ if not st.session_state.logged_in:
                 st.error("⚠️ メールアドレスではなく、登録した「ユーザーネーム」を入力してください。")
             else:
                 users = load_users()
-                if user_input in users and users[user_input]["password"] == hash_pass(pass_input):
+                if user_input in users and verify_pass(pass_input, users[user_input]["password"]):
                     
                     # ★ セキュリティ修正4: ログインするたびに「新しい」トークンを発行して上書き（使い回し防止）
                     new_token = secrets.token_hex(32)
