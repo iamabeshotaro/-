@@ -549,26 +549,29 @@ st.divider()
 # 画面1: マイ時間割
 # ------------------------------------------
 if st.session_state.current_page == "tt" and not st.session_state.is_guest:
-# ==========================================
-    # ★ 追加: ページトップの目印（透明なアンカー）
-    # ==========================================
     st.markdown("<div id='page-top'></div>", unsafe_allow_html=True)    
-    if 'saved_tt_sem' not in st.session_state: 
-        st.session_state.saved_tt_sem = "春学期"
+# ==========================================
+    # ★ 追加: 両画面で共有するマスター変数の準備
+    # ==========================================
+    if 'shared_sem' not in st.session_state: st.session_state.shared_sem = "春学期"
+    if 'search_sem_val' not in st.session_state: st.session_state.search_sem_val = "春学期"
 
+    # 時間割で学期を変えたら、検索画面の学期も一緒に変える関数
     def update_tt_sem():
-        st.session_state.saved_tt_sem = st.session_state.tt_sem_widget
+        st.session_state.shared_sem = st.session_state.tt_sem_widget
+        st.session_state.search_sem_val = st.session_state.tt_sem_widget # 検索画面へ同期！
         
     if st.session_state.active_slot is None:
         col_h1, col_h2 = st.columns([3, 2])
         with col_h1:
-            current_idx = 0 if st.session_state.saved_tt_sem == "春学期" else 1
+            # 共有マスター変数（shared_sem）を見て、プルダウンの初期位置を決める
+            current_idx = 0 if st.session_state.shared_sem == "春学期" else 1
             semester = st.selectbox(
                 "学期", 
                 ["春学期", "秋学期"], 
                 index=current_idx,
                 key="tt_sem_widget", 
-                on_change=update_tt_sem,
+                on_change=update_tt_sem, # 変更されたら同期関数を実行
                 label_visibility="collapsed"
             )
         with col_h2: 
@@ -616,7 +619,7 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
         d = st.session_state.active_slot['day']
         p = st.session_state.active_slot['period']
         course = st.session_state.active_slot['course']
-        semester = st.session_state.saved_tt_sem
+        semester = st.session_state.shared_sem
 
         col_title, col_close = st.columns([4, 1])
         col_title.subheader(f"⚙️ {d}曜{p}限")
