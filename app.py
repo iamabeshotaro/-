@@ -667,12 +667,24 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
                 
                 is_bk = row['is_bk'] # 上で作った判定フラグをそのまま利用
                 with b2:
-                    if st.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_{row['授業コード']}", use_container_width=True):
+                    if st.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_btn_{row['授業コード']}", use_container_width=True):
                         if not is_bk: 
+                            # 候補に追加
                             st.session_state.bookmarks.append(row.to_dict())
                         else: 
-                            st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b['授業コード'] != row['授業コード']]
-                        if "save_and_rerun" in globals(): save_and_rerun()
+                            # 1. ブックマーク（候補）から削除
+                            st.session_state.bookmarks = [b for b in st.session_state.bookmarks if b.get('授業コード') != row['授業コード']]
+                            
+                            # ★ 2. 【追加】本登録からも強制解除する
+                            target_code = row['授業コード']
+                            for sem in ["春学期", "秋学期"]:
+                                # その学期にその授業コードが登録されていれば削除
+                                if target_code in st.session_state.registered.get(sem, {}):
+                                    del st.session_state.registered[sem][target_code]
+                        
+                        # 変更を保存してリロード
+                        if "save_and_rerun" in globals(): 
+                            save_and_rerun()
                         
                 if "display_links" in globals(): display_links(row.to_dict())
 
