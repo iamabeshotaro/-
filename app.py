@@ -853,7 +853,7 @@ elif st.session_state.current_page == "search":
                         if "save_and_rerun" in globals(): save_and_rerun()
                 
                 is_bk = row['is_bk'] # 上で作ったフラグを利用
-                with b2:
+                with c2:
                     if st.button("外す" if is_bk else "⭐ 候補へ", key=f"bk_btn_{row['授業コード']}", use_container_width=True):
                         if not is_bk: 
                             # 候補に追加
