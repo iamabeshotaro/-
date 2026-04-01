@@ -1027,7 +1027,8 @@ elif st.session_state.current_page == "public":
                             target_data['likes'].remove(my_id)
                         else: 
                             target_data['likes'].append(my_id)
-                        save_users(users)
+                        # ★変更: 全員分ではなく、いいねされた相手の行だけを更新！
+                        save_target_user(selected_user, target_data)
                         st.rerun()
 
             st.write(f"👤 **{selected_user}** ({target_dept} / {target_gender}) さんの {p_sem}（計 {get_total_credits(target_data['registered'].get(p_sem, {})):.1f} 単位）")
@@ -1093,9 +1094,14 @@ elif st.session_state.current_page == "mypage" and not st.session_state.is_guest
         new_gender = st.selectbox("性別", gender_options, index=gender_options.index(current_gender) if current_gender in gender_options else 0)
         
         if st.button("属性を保存", use_container_width=True):
-            users[st.session_state.current_user]["department"] = new_dept
-            users[st.session_state.current_user]["gender"] = new_gender
-            save_users(users)
+            my_data = users[st.session_state.current_user]
+            my_data["department"] = new_dept
+            my_data["gender"] = new_gender
+            
+            # ★ 修正: 全員分ではなく、自分の行だけをピンポイントで更新
+            if "save_target_user" in globals():
+                save_target_user(st.session_state.current_user, my_data)
+            
             st.success("✅ 保存しました！")
             time.sleep(1)
             st.rerun()
@@ -1108,14 +1114,25 @@ elif st.session_state.current_page == "mypage" and not st.session_state.is_guest
                 if new_username in users: st.error("既に使われています")
                 else:
                     old_username = st.session_state.current_user
-                    users[new_username] = users.pop(old_username)
-                    for u_data in users.values():
-                        if "likes" in u_data and old_username in u_data["likes"]:
-                            u_data["likes"].remove(old_username)
-                            u_data["likes"].append(new_username)
-                    save_users(users)
+                    my_data = users[old_username]
+                    
+                    if "save_target_user" in globals() and "delete_target_user" in globals():
+                        # 1. 新しい名前でスプレッドシートに行を追加
+                        save_target_user(new_username, my_data)
+                        
+                        # 2. 古い名前の行を完全に削除
+                        delete_target_user(old_username)
+                        
+                        # 3. いいねの移行（自分をいいねしてくれていた人の行だけ更新）
+                        for uname, u_data in users.items():
+                            if "likes" in u_data and old_username in u_data["likes"]:
+                                u_data["likes"].remove(old_username)
+                                u_data["likes"].append(new_username)
+                                save_target_user(uname, u_data)
+                                
                     st.session_state.current_user = new_username
-                    st.session_state.pending_rename_set = new_username
+                    # ※トークン認証になったため、pending_rename_setの処理は不要になり削除しました
+                    
                     st.success("✅ 変更しました！")
                     time.sleep(1)
                     st.rerun()
@@ -1125,16 +1142,22 @@ elif st.session_state.current_page == "mypage" and not st.session_state.is_guest
         if st.button("🗑️ アカウント削除", type="primary", use_container_width=True):
             user_to_del = st.session_state.current_user
             if user_to_del in users:
-                del users[user_to_del]
-                for u_data in users.values():
-                    if "likes" in u_data and user_to_del in u_data["likes"]:
-                        u_data["likes"].remove(user_to_del)
-                save_users(users)
+                
+                if "delete_target_user" in globals() and "save_target_user" in globals():
+                    # 1. 自分の行を完全に削除
+                    delete_target_user(user_to_del)
+                    
+                    # 2. いいねの解除（自分をいいねしてくれていた人の行だけ更新）
+                    for uname, u_data in users.items():
+                        if "likes" in u_data and user_to_del in u_data["likes"]:
+                            u_data["likes"].remove(user_to_del)
+                            save_target_user(uname, u_data)
+                            
             st.session_state.logged_in = False
             st.session_state.current_user = None
             st.session_state.pending_logout = True
             st.rerun()
-    
+            
     st.divider()
     if st.button("🚪 ログアウト", use_container_width=True):
         st.session_state.logged_in = False
