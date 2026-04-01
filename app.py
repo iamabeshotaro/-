@@ -11,6 +11,7 @@ import extra_streamlit_components as stx
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import hashlib
+import secrets
 
 # ==========================================
 # 1. ページ設定とスマホ向け究極CSS (完全分離・Safari対応版)
@@ -273,18 +274,20 @@ def hash_pass(password):
 cookie_manager = stx.CookieManager()
 
 if st.session_state.pending_logout:
-    cookie_manager.delete("current_user", key="logout_del")
+    # ★ 変更: "current_user" ではなく "session_token" を消す
+    cookie_manager.delete("session_token", key="logout_del")
     st.session_state.pending_logout = False
     st.session_state.manual_logout = True
 
 if st.session_state.pending_login_set:
-    cookie_manager.set("current_user", st.session_state.pending_login_set, max_age=2592000, key="login_set")
+    # ★ 変更: "current_user" ではなく "session_token" に保存する
+    cookie_manager.set("session_token", st.session_state.pending_login_set, max_age=2592000, key="login_set")
     st.session_state.pending_login_set = None
 
 if st.session_state.pending_rename_set:
-    cookie_manager.set("current_user", st.session_state.pending_rename_set, max_age=2592000, key="rename_set")
+    # 今回の修正でここは使わなくなりますが、エラー防止のため残しておきます
+    cookie_manager.set("session_token", st.session_state.pending_rename_set, max_age=2592000, key="rename_set")
     st.session_state.pending_rename_set = None
-
 # ==========================================
 # 4. データの準備
 # ==========================================
@@ -312,15 +315,24 @@ df = load_data()
 # 5. アカウント画面（自動ログイン ＆ ゲスト機能搭載）
 # ==========================================
 if not st.session_state.logged_in:
-    cached_user = cookie_manager.get(cookie="current_user")
-    # ゲストユーザーはクッキーログインの対象外にする
-    if cached_user and not st.session_state.manual_logout and cached_user != "Guest":
+    # ★ 変更: クッキーから「セッショントークン」を取得
+    cached_token = cookie_manager.get(cookie="session_token")
+    
+    if cached_token and not st.session_state.manual_logout:
         users = load_users()
-        if cached_user in users:
+        # ★ 変更: データベースの中から、トークンが一致するユーザーを探し出す
+        matched_user = None
+        for uname, udata in users.items():
+            if udata.get("session_token") == cached_token:
+                matched_user = uname
+                break
+        
+        # 一致するユーザーがいれば自動ログイン成功！
+        if matched_user:
             st.session_state.logged_in = True
-            st.session_state.current_user = cached_user
-            st.session_state.registered = users[cached_user]["registered"]
-            st.session_state.bookmarks = users[cached_user]["bookmarks"]
+            st.session_state.current_user = matched_user
+            st.session_state.registered = users[matched_user].get("registered", {"春学期": {}, "秋学期": {}})
+            st.session_state.bookmarks = users[matched_user].get("bookmarks", [])
             st.session_state.is_guest = False
             st.rerun()
 
