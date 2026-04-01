@@ -579,6 +579,7 @@ elif st.session_state.current_page == "tt" and not st.session_state.is_guest:
         with col_h2: 
             st.write(f"✅ **{get_total_credits(st.session_state.registered[semester]):.1f} 単位**")
 
+        # （ここから下の days = ... や表の描画は変更なし！）
 
         days = ["月", "火", "水", "木", "金"]
         
