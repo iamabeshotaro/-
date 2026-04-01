@@ -281,26 +281,29 @@ def delete_target_user(username):
 # ==========================================
 # ★ 修正: 強力なソルト付きパスワード暗号化機能
 # ==========================================
+# ==========================================
+# ★ 修正: 強力なソルト付きパスワード暗号化機能（エラー修正版）
+# ==========================================
 def hash_pass(password, salt=None):
     """パスワードを強力に暗号化する関数（ソルトとストレッチングを使用）"""
     if salt is None:
         # ランダムな16文字の「ソルト（塩）」を生成
         salt = secrets.token_hex(16)
         
-    # pbkdf2_hmac: ハッカーが解読するのを激しく遅延させる強力な関数（10万回計算を繰り返す）
+    # pbkdf2_hmac は「バイト列」を返すので、.hexdigest() ではなく .hex() を使う！
     hashed = hashlib.pbkdf2_hmac(
         'sha256', 
         password.encode('utf-8'), 
         salt.encode('utf-8'), 
         100000
-    ).hexdigest()
+    ).hex()  # ★ここを .hex() に修正しました！
     
     # ソルトとハッシュ化されたパスワードを「$」で繋いで保存する
     return f"{salt}${hashed}"
 
 def verify_pass(password, stored_hash):
     """入力されたパスワードが正しいか検証する関数"""
-    # 昔の単純なSHA256ハッシュ（$が含まれていない）の互換性維持（Shoのテストアカウント救済用）
+    # 昔の単純なSHA256ハッシュ（$が含まれていない）の互換性維持
     if "$" not in stored_hash:
         return hashlib.sha256(password.encode()).hexdigest() == stored_hash
         
