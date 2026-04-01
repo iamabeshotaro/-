@@ -729,21 +729,41 @@ if st.session_state.current_page == "tt" and not st.session_state.is_guest:
 # 画面2: 検索画面 (ゲスト制限あり)
 # ------------------------------------------
 elif st.session_state.current_page == "search":
-# ==========================================
-    # ★ 追加: ページトップの目印（透明なアンカー）
-    # ==========================================
-    st.markdown("<div id='page-top'></div>", unsafe_allow_html=True)
     st.subheader("🔍 授業検索")
+    st.markdown("<div id='page-top'></div>", unsafe_allow_html=True)
     
+    # ==========================================
+    # ★ 追加: 両画面で共有するマスター変数の準備
+    # ==========================================
+    if 'shared_sem' not in st.session_state: st.session_state.shared_sem = "春学期"
+    if 'search_sem_val' not in st.session_state: st.session_state.search_sem_val = "春学期"
+
     if "search_query" not in st.session_state: st.session_state.search_query = ""
-    if "search_sem" not in st.session_state: st.session_state.search_sem = "春学期"
     if "search_day" not in st.session_state: st.session_state.search_day = "すべて"
     if "search_per" not in st.session_state: st.session_state.search_per = "すべて"
     if "search_labels" not in st.session_state: st.session_state.search_labels = []
 
+    # 検索画面で学期を変えたら、時間割画面の学期も一緒に変える関数
+    def update_search_sem():
+        val = st.session_state.search_sem_widget
+        st.session_state.search_sem_val = val
+        # 「すべて」を選んだ時は時間割は同期させない（エラー防止）
+        if val in ["春学期", "秋学期"]:
+            st.session_state.shared_sem = val # 時間割画面へ同期！
+
     query = st.text_input("キーワード (授業名・教員)", key="search_query")
     
-    s_sem = st.selectbox("学期", ["春学期", "秋学期", "すべて"], key="search_sem")
+    # 共有マスター変数と連携した検索用プルダウン
+    opts = ["春学期", "秋学期", "すべて"]
+    current_search_idx = opts.index(st.session_state.search_sem_val)
+    s_sem = st.selectbox(
+        "学期", 
+        opts, 
+        index=current_search_idx, 
+        key="search_sem_widget", 
+        on_change=update_search_sem
+    )
+    
     col_d, col_p = st.columns(2)
     s_day = col_d.selectbox("曜日", ["すべて", "月", "火", "水", "木", "金"], key="search_day")
     s_per = col_p.selectbox("時限", ["すべて", "1", "2", "3", "4", "5", "6"], key="search_per")
