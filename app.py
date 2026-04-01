@@ -357,8 +357,12 @@ if not st.session_state.logged_in:
                 if user_input in users:
                     st.error("既に使用されています")
                 else:
+                    # ★ 追加: 新規登録時に64文字の超強力なランダム文字列を発行
+                    new_token = secrets.token_hex(32)
+                    
                     users[user_input] = {
                         "password": hash_pass(pass_input),
+                        "session_token": new_token, # ★ ここに追加！
                         "registered": {"春学期": {}, "秋学期": {}},
                         "bookmarks": [],
                         "likes": [],
@@ -376,7 +380,8 @@ if not st.session_state.logged_in:
                     st.session_state.bookmarks = []
                     st.session_state.is_guest = False
                     st.session_state.manual_logout = False 
-                    st.session_state.pending_login_set = user_input
+                    # ★ 変更: ユーザー名ではなくトークンをクッキーに渡す
+                    st.session_state.pending_login_set = new_token
                     st.rerun()
     else:
         if st.button("ログイン", type="primary", use_container_width=True):
@@ -385,16 +390,23 @@ if not st.session_state.logged_in:
             # ★変更点3：ログイン時にも、間違えてメアドを入れた人に優しく教える
             elif "@" in user_input:
                 st.error("⚠️ メールアドレスではなく、登録した「ユーザーネーム」を入力してください。")
-            else:
-                users = load_users()
+            users = load_users()
                 if user_input in users and users[user_input]["password"] == hash_pass(pass_input):
+                    
+                    # ★ 追加: ログインするたびに「新しい」トークンを発行して上書き（使い回し防止）
+                    new_token = secrets.token_hex(32)
+                else:
+                    users[user_input]["session_token"] = new_token
+                    save_users(users)
+                    
                     st.session_state.logged_in = True
                     st.session_state.current_user = user_input
-                    st.session_state.registered = users[user_input]["registered"]
-                    st.session_state.bookmarks = users[user_input]["bookmarks"]
+                    st.session_state.registered = users[user_input].get("registered", {"春学期": {}, "秋学期": {}})
+                    st.session_state.bookmarks = users[user_input].get("bookmarks", [])
                     st.session_state.is_guest = False
                     st.session_state.manual_logout = False 
-                    st.session_state.pending_login_set = user_input
+                    # ★ 変更: ユーザー名ではなくトークンをクッキーに渡す
+                    st.session_state.pending_login_set = new_token
                     st.rerun()
                 else:
                     st.error("⚠️ ユーザーネームかパスワードが間違っています")
