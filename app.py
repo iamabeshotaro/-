@@ -251,22 +251,33 @@ def load_users():
         st.error(f"データベースの読み込みに失敗しました: {e}")
         return {}
 
-def save_users(users):
+def save_target_user(username, user_data):
+    """特定のユーザーの行だけをピンポイントで更新・追加する安全な関数"""
     try:
         client = get_gspread_client()
         sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
+        usernames = sheet.col_values(1) # A列（ユーザー名）をすべて取得
+        data_str = json.dumps(user_data, ensure_ascii=False)
         
-        # スプレッドシートに書き込む形式にデータを整える
-        cell_data = [["username", "data"]] # 1行目のヘッダー
-        for uname, udata in users.items():
-            cell_data.append([uname, json.dumps(udata, ensure_ascii=False)])
-            
-        # 一旦シートをクリアして、新しいデータで上書きする
-        sheet.clear()
-        sheet.update('A1', cell_data)
+        if username in usernames:
+            row_idx = usernames.index(username) + 1 # スプレッドシートは1行目から始まるため+1
+            sheet.update_cell(row_idx, 2, data_str) # B列（データ）だけを上書き！
+        else:
+            sheet.append_row([username, data_str]) # 新規ユーザーなら一番下に追加
     except Exception as e:
         st.error(f"データベースの保存に失敗しました: {e}")
 
+def delete_target_user(username):
+    """特定のユーザーの行だけをピンポイントで削除する関数"""
+    try:
+        client = get_gspread_client()
+        sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
+        usernames = sheet.col_values(1)
+        if username in usernames:
+            row_idx = usernames.index(username) + 1
+            sheet.delete_row(row_idx) # その人の行を丸ごと削除
+    except Exception as e:
+        st.error(f"データベースの削除に失敗しました: {e}")
 def hash_pass(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
